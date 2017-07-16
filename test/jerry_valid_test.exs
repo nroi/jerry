@@ -1,6 +1,9 @@
 defmodule JerryValidTest do
   use ExUnit.Case
 
+  # Each test in this file corresponds to exactly one TOML file in the test/valid directory.
+  # The TOML files have been copied from https://github.com/BurntSushi/toml-test
+
   test "array-empty" do
     toml = File.read!("test/valid/array-empty.toml") |> Jerry.decode!
     expected = %{"thevoid" => [[[[[]]]]]}
@@ -52,6 +55,294 @@ defmodule JerryValidTest do
         "more" => [42, 42]
       }
     }
+    assert toml == expected
+  end
+
+  test "datetime" do
+    toml = File.read!("test/valid/datetime.toml") |> Jerry.decode!
+    expected = %{
+      # TODO datetimes are not supported yet.
+      "bestdayever" => {:toml_datetime, "1987-07-05T17:45:00Z"}
+    }
+    assert toml == expected
+  end
+
+  test "empty" do
+    toml = File.read!("test/valid/empty.toml") |> Jerry.decode!
+    expected = %{}
+    assert toml == expected
+  end
+
+  test "example" do
+    toml = File.read!("test/valid/example.toml") |> Jerry.decode!
+    expected = %{
+      # TODO datetimes are not supported yet.
+      "best-day-ever" => {:toml_datetime, "1987-07-05T17:45:00Z"},
+      "numtheory" => %{
+        "boring" => false,
+        "perfection" => [6, 28, 496]
+      }
+    }
+    assert toml == expected
+  end
+
+  test "float" do
+    toml = File.read!("test/valid/float.toml") |> Jerry.decode!
+    expected = %{
+      "pi" => 3.14,
+      "negpi" => -3.14
+    }
+    assert toml == expected
+  end
+
+  # TODO not supported yet.
+  # test "implicit-and-explicit-after" do
+  #   toml = File.read!("test/valid/implicit-and-explicit-after.toml") |> Jerry.decode!
+  #   expected = %{
+  #     "a" => %{
+  #       "b" => %{
+  #         "c" => %{
+  #           "answer" => 42
+  #         }
+  #       },
+  #       "better" => 43
+  #     }
+  #   }
+  #   assert toml == expected
+  # end
+  #
+  # test "implicit-and-explicit-before" do
+  #   toml = File.read!("test/valid/implicit-and-explicit-before.toml") |> Jerry.decode!
+  #   expected = %{
+  #     "a" => %{
+  #       "b" => %{
+  #         "c" => %{
+  #           "answer" => 42
+  #         }
+  #       },
+  #       "better" => 43
+  #     }
+  #   }
+  #   assert toml == expected
+  # end
+  # test "implicit-groups" do
+  #   toml = File.read!("test/valid/implicit-groups") |> Jerry.decode!
+  #   expected = %{
+  #     "a" => %{
+  #       "b" => %{
+  #         "c" => %{
+  #           "answer" => 42
+  #         }
+  #       }
+  #     }
+  #   }
+  #   assert toml == expected
+  # end
+
+  test "integer" do
+    toml = File.read!("test/valid/integer.toml") |> Jerry.decode!
+    expected = %{
+      "answer" => 42,
+      "neganswer" => -42,
+    }
+    assert toml == expected
+  end
+
+  test "key-equals-nospace" do
+    toml = File.read!("test/valid/key-equals-nospace.toml") |> Jerry.decode!
+    expected = %{"answer" => 42}
+    assert toml == expected
+  end
+
+  test "key-space" do
+    toml = File.read!("test/valid/key-space.toml") |> Jerry.decode!
+    expected = %{"a b" => 1}
+    assert toml == expected
+  end
+
+  test "key-special-chars" do
+    toml = File.read!("test/valid/key-special-chars.toml") |> Jerry.decode!
+    expected = %{~s{~!@$^&*()_+-`1234567890[]|/?><.,;:'} => 1}
+    assert toml == expected
+  end
+
+  test "long-float" do
+    toml = File.read!("test/valid/long-float.toml") |> Jerry.decode!
+    expected = %{
+      "longpi" => 3.141592653589793,
+      "neglongpi" => -3.141592653589793
+    }
+    assert toml == expected
+  end
+
+  test "long-integer" do
+    toml = File.read!("test/valid/long-integer.toml") |> Jerry.decode!
+    expected = %{
+      "answer" => 9223372036854775807,
+      "neganswer" => -9223372036854775808,
+    }
+    assert toml == expected
+  end
+
+  test "multiline-string" do
+    toml = File.read!("test/valid/multiline-string.toml") |> Jerry.decode!
+    expected = %{
+      "multiline_empty_one" => "",
+      "multiline_empty_two" => "",
+      "multiline_empty_three" => "",
+      "multiline_empty_four" => "",
+      "equivalent_one" => "The quick brown fox jumps over the lazy dog.",
+      "equivalent_two" => "The quick brown fox jumps over the lazy dog.",
+      "equivalent_three" => "The quick brown fox jumps over the lazy dog."
+    }
+    assert toml == expected
+  end
+
+  test "raw-multiline-string" do
+    toml = File.read!("test/valid/multiline-string.toml") |> Jerry.decode!
+    expected = %{
+      "oneline" => ~s(This string has a ' quote character.),
+      "firstnl" => ~s(This string has a ' quote character.),
+      "multiline" => ~s(This string\nhas ' a quote character\nand more than\none newline\nin it.)
+    }
+    assert toml == expected
+  end
+
+  test "raw-string" do
+    toml = File.read!("test/valid/raw-string.toml") |> Jerry.decode!
+    expected = %{
+      "backspace" => ~S(This string has a \b backspace character.),
+      "tab" => ~S(This string has a \t tab character.),
+      "newline" => ~S(This string has a \n new line character.),
+      "formfeed" => ~S(This string has a \f form feed character.),
+      "carriage" => ~S(This string has a \r carriage return character.),
+      "slash" => ~S(This string has a \/ slash character.),
+      "backslash" => ~S(This string has a \\ backslash character.)
+    }
+    assert toml == expected
+  end
+
+  test "string-empty" do
+    toml = File.read!("test/valid/string-empty.toml") |> Jerry.decode!
+    expected = %{"answer" => ""}
+    assert toml == expected
+  end
+
+  test "string-escapes" do
+    toml = File.read!("test/valid/string-empty.toml") |> Jerry.decode!
+    expected = %{}
+    # TODO figure out how escapes work.
+    assert toml == expected
+  end
+
+  test "string-simple" do
+    toml = File.read!("test/valid/string-simple.toml") |> Jerry.decode!
+    expected = %{"answer" => "You are not drinking enough whisky."}
+    assert toml == expected
+  end
+
+  test "string-with-pound" do
+    toml = File.read!("test/valid/string-with-pound.toml") |> Jerry.decode!
+    expected = %{
+      "pound" => "We see no # comments here.",
+      "poundcomment" => "But there are # some comments here."
+    }
+    assert toml == expected
+  end
+
+  # TODO nested tables not supported yet.
+  # test "table-array-implicit" do
+  #   toml = File.read!("test/valid/table-array-implicit.toml") |> Jerry.decode!
+  #   expected = %{
+  #     "albums" => %{
+  #       "songs" => %{
+  #         "name" => "Glory Days"
+  #       }
+  #     }
+  #   }
+  #   assert toml == expected
+  # end
+
+  test "table-array-many" do
+    toml = File.read!("test/valid/table-array-many.toml") |> Jerry.decode!
+    expected = %{
+      "people" => [
+        %{"first_name" => "Bruce", "last_name" => "Springsteen"},
+        %{"first_name" => "Eric", "last_name" => "Clapton"},
+        %{"first_name" => "Bob", "last_name" => "Seger"}
+      ]
+    }
+    assert toml == expected
+  end
+
+  test "table-array-nest" do
+    toml = File.read!("test/valid/table-array-nest.toml") |> Jerry.decode!
+    expected = %{
+      "albums" => [
+        %{
+          "name" => "Born to Run",
+          "songs": [
+            %{"name" => "Jungleland"},
+            %{"name" => "Meeting Across the River"}
+          ]
+        },
+        %{
+          "name" => "Born in the USA",
+          "songs" => [
+            %{"name" => "Glory Days"},
+            %{"name" => "Dancing in the Dark"}
+          ]
+        }
+      ]
+    }
+    assert toml == expected
+  end
+
+  test "table-array-one" do
+    toml = File.read!("test/valid/table-array-nest.toml") |> Jerry.decode!
+    expected = %{
+      "people" => [
+        %{"first_name" => "Bruce", "last_name" => "Springsteen"}
+      ]
+    }
+    assert toml == expected
+  end
+
+  test "table-empty" do
+    toml = File.read!("test/valid/table-empty.toml") |> Jerry.decode!
+    expected = %{"a" => %{}}
+    assert toml == expected
+  end
+
+  # TODO not supported
+  # test "table-sub-empty" do
+  #   toml = File.read!("test/valid/table-sub-empty.toml") |> Jerry.decode!
+  #   expected = %{"a" => %{"b" => %{}}}
+  #   assert toml == expected
+  # end
+
+  test "table-whitespace" do
+    toml = File.read!("test/valid/table-whitespace.toml") |> Jerry.decode!
+    expected = %{"valid key" => %{}}
+    assert toml == expected
+  end
+
+  test "table-with-pound" do
+    toml = File.read!("test/valid/table-with-pound.toml") |> Jerry.decode!
+    expected = %{"key#group" => %{"answer" => 42}}
+    assert toml == expected
+  end
+
+  test "unicode-escape" do
+    toml = File.read!("test/valid/unicode-escape.toml") |> Jerry.decode!
+    expected = %{}
+    # TODO
+    assert toml == expected
+  end
+
+  test "unicode-literal" do
+    toml = File.read!("test/valid/unicode-literal.toml") |> Jerry.decode!
+    expected = %{"answer" => "δ"}
     assert toml == expected
   end
 

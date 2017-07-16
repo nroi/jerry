@@ -28,11 +28,8 @@ defmodule Jerry do
     end) ++ other
   end
 
-  def loads(s) do
+  def decode!(s) do
     intermediate = s |> intermediate_repr |> compress_intermediate |> kv_pairs_to_map
-  end
-
-  def intermediate2map(intermediate) do
   end
 
   def intermediate2val({:toml_integer, int_str}) do
@@ -193,6 +190,11 @@ defmodule Jerry do
     end
   end
 
+  defp skip_comment(s) do
+    # Ignore all commente lines, as well as leading whitespace followed by those comment lines.
+    String.replace(s, ~r/^(\s*(#.*)?\n)*\s*/, "")
+  end
+
   def key_value_pairs("", pairs, _), do: {:eof, pairs}
   def key_value_pairs(s, pairs, inside_table) do
     IO.puts "key_value_pairs(#{inspect s})"
@@ -233,8 +235,7 @@ defmodule Jerry do
         IO.puts "rest: #{inspect rest}"
         rest = String.replace(rest, ~r(^\s*=\s*), "")
         IO.puts "rest: #{inspect rest}"
-        {value, rest} = parse_value(rest)
-        IO.puts "rest: #{inspect rest}"
+        {value, rest} = parse_value(skip_comment(rest))
         new_pair = {:key, key, value}
         key_value_pairs(String.trim_leading(rest), [new_pair | pairs], inside_table)
       :eof -> {:eof, pairs}
@@ -291,7 +292,7 @@ defmodule Jerry do
     parse_number(n)
   end
   def parse_value("[" <> rest) do
-    {values, rest} = parse_values(String.trim_leading(rest), [])
+    {values, rest} = parse_values(skip_comment(rest), [])
     {{:toml_array, values}, rest}
   end
   def parse_value("{" <> rest) do
@@ -318,7 +319,7 @@ defmodule Jerry do
     {value, rest} = case parse_value(n) do
       {v, r} -> {v, Regex.replace(~r(^\s*,?\s*), r, "", global: false)}
     end
-    parse_values(rest, [value | acc])
+    parse_values(skip_comment(rest), [value | acc])
   end
 
   # Given a string such as "foo = 1, bar = 2\n", return a list of key-value pairs.
@@ -351,7 +352,6 @@ defmodule Jerry do
     result = case Regex.run(float_regex, number) do
       nil -> :nomatch
       _match ->
-      # [_complete | [ number | [sign | tail ]]] ->
         if String.contains?(number, ".") ||
            String.contains?(number, "e") ||
            String.contains?(number, "E") do

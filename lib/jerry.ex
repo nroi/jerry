@@ -8,7 +8,6 @@ defmodule Jerry do
     case key_value_pairs(normalize(s), kv_pairs, false) do
       {:eof, pairs} -> Enum.reverse(pairs)
       {:continue, {rest, pairs}} ->
-        IO.puts "continue with #{inspect rest}"
         intermediate_repr(rest, pairs)
     end
   end
@@ -175,17 +174,23 @@ defmodule Jerry do
     end
   end
   def parse_key(k = "[[" <> _) do
-    [table, rest] = String.split(k, "\n", parts: 2)
+    {table, rest} = split_newline(k)
     {:parse_array_of_tables, {table, rest}}
   end
   def parse_key(k = "[" <> _) do
-    [table, rest] = String.split(k, "\n", parts: 2)
+    {table, rest} = split_newline(k)
     IO.puts "It's a table, continue with #{inspect rest}"
     {:parse_table, {table, rest}}
   end
   def parse_key(s) do
     [key, rest] = String.split(s, ~r(\s*=\s*), parts: 2)
     {{:key, key}, rest}
+  end
+
+  defp split_newline(s) do
+    case Regex.named_captures(~r/^(?<name>.*?)\s*(#.*?)?\n(?<rest>.*)/s, s) do
+      %{"name" => name, "rest" => rest} -> {name, rest}
+    end
   end
 
   def key_value_pairs("", pairs, _), do: {:eof, pairs}

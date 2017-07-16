@@ -22,7 +22,9 @@ defmodule Jerry do
       {:toml_array_of_tables, _, _} -> true
       _ -> false
     end)
-    compressed = arrays_of_tables |> Enum.group_by(fn {:toml_array_of_tables, name, _} -> name end)
+    compressed = arrays_of_tables |> Enum.group_by(fn {:toml_array_of_tables, name, _} ->
+      unquote_array_of_tables(name)
+    end)
     Enum.map(compressed, fn {name, arrays} ->
       {:toml_arrays_of_tables, name, arrays}
     end) ++ other
@@ -108,7 +110,7 @@ defmodule Jerry do
 
   def intermediate2val({:toml_table, name, table_pairs}) do
     kv_pairs = Enum.map(table_pairs, fn
-      {:key, name, value} -> {name, intermediate2val(value)}
+      {:key, name, value} -> {unquote_string(name), intermediate2val(value)}
     end)
     kv_map = Map.new(kv_pairs)
     {parse_table_name(name), kv_map}
@@ -119,14 +121,14 @@ defmodule Jerry do
   end
 
   def intermediate2val({:toml_arrays_of_tables, name, arrays}) do
-    Enum.map(arrays, fn
-      {:toml_array_of_tables, ^name, kv_pairs} ->
+    {name, Enum.map(arrays, fn
+      {:toml_array_of_tables, _name, kv_pairs} ->
         kv_pairs_to_map(kv_pairs)
-    end)
+    end)}
   end
 
   def intermediate2val({:key, name, value}) do
-    {name, intermediate2val(value)}
+    {unquote_string(name), intermediate2val(value)}
   end
 
   def intermediate2val({:toml_basic_string, string}) do
@@ -134,6 +136,20 @@ defmodule Jerry do
     Regex.named_captures(~r/^"(?<value>.*)"$/, string)["value"]
   end
 
+  def unquote_string(key_name = ~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
+  def unquote_string(key_name = ~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
+  def unquote_string(key_name), do: key_name
+
+  def unquote_table_name(table_name = "[" <> rest) do
+    rest |> String.replace_suffix("]", "") |> unquote_string
+  end
+  def unquote_array_of_tables(name = "[[" <> rest) do
+    # TODO perhaps we can refactor this by taking into account that:
+    # "Naming rules for each dot separated part are the same as for keys
+    # (see definition of Key/Value Pairs)."
+    # i.e., use the same function for both keys and table names.
+    rest |> String.replace_suffix("]]", "") |> unquote_string
+  end
 
   # Given a list such as [{:key, "foo", 1}], return the corresponding map, e.g. %{"foo" => 1}
   # TODO introduce a type such as kv_pairs :: [kv_pair], kv_pair == {:key, String.t, value}
@@ -143,7 +159,7 @@ defmodule Jerry do
   end
 
   def parse_table_name(name) do
-    if String.contains?(name, ~s(")) || String.contains?(name, ".") do
+    if String.contains?(name, ".") do
       raise "Table names containing dots or quotes are not supported yet."
     end
     Regex.named_captures(~r/^\[(?<name>.*)\]$/, name)["name"]

@@ -143,6 +143,9 @@ defmodule Jerry do
   def unquote_string(~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
   def unquote_string(key_name), do: key_name
 
+  def unquote_table_name("[\"" <> rest) do
+    rest |> String.replace_suffix("\"]", "") |> unquote_string
+  end
   def unquote_table_name("[" <> rest) do
     rest |> String.replace_suffix("]", "") |> unquote_string
   end
@@ -186,9 +189,12 @@ defmodule Jerry do
     {table, rest} = split_newline(k)
     {:parse_array_of_tables, {table, rest}}
   end
+  def parse_key(k = "[\"" <> rest) do
+    {{:quoted_string, table}, "]" <> rest} = parse_quoted_string(rest)
+    {:parse_table, {"[" <> table <> "]", skip_comment(rest)}}
+  end
   def parse_key(k = "[" <> _) do
     {table, rest} = split_newline(k)
-    IO.puts "It's a table, continue with #{inspect rest}"
     {:parse_table, {table, rest}}
   end
   def parse_key(s) do
@@ -203,7 +209,7 @@ defmodule Jerry do
   end
 
   defp skip_comment(s) do
-    # Ignore all commente lines, as well as leading whitespace followed by those comment lines.
+    # Ignore all comment lines, as well as leading whitespace followed by those comment lines.
     String.replace(s, ~r/^(\s*(#.*)?\n)*\s*/, "")
   end
 

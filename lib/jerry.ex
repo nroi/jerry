@@ -131,9 +131,12 @@ defmodule Jerry do
     {unquote_string(name), intermediate2val(value)}
   end
 
-  def intermediate2val({:toml_basic_string, string}) do
+  def intermediate2val({:toml_basic_string, string = ~s(") <> _}) do
     # TODO not finished, does not support multiline strings.
     Regex.named_captures(~r/^"(?<value>.*)"$/, string)["value"]
+  end
+  def intermediate2val({:toml_basic_string, string = ~s(') <> _}) do
+    Regex.named_captures(~r/^'(?<value>.*)'$/, string)["value"]
   end
 
   def unquote_string(key_name = ~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")

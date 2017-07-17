@@ -113,7 +113,7 @@ defmodule Jerry do
       {:key, name, value} -> {unquote_string(name), intermediate2val(value)}
     end)
     kv_map = Map.new(kv_pairs)
-    {parse_table_name(name), kv_map}
+    {unquote_table_name(name), kv_map}
   end
 
   def intermediate2val({:toml_inline_table, table_pairs}) do
@@ -156,13 +156,6 @@ defmodule Jerry do
   def kv_pairs_to_map(kv_pairs) do
     pairs = Enum.map(kv_pairs, &intermediate2val/1)
     Map.new(pairs)
-  end
-
-  def parse_table_name(name) do
-    if String.contains?(name, ".") do
-      raise "Table names containing dots or quotes are not supported yet."
-    end
-    Regex.named_captures(~r/^\[(?<name>.*)\]$/, name)["name"]
   end
 
   def normalize(s) do

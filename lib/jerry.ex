@@ -31,19 +31,7 @@ defmodule Jerry do
   end
 
   def decode!(s) do
-    intermediate = s |> intermediate_repr |> compress_intermediate |> kv_pairs_to_map
-  end
-
-  def intermediate2val({:toml_integer, int_str}) do
-    # Leading zeroes are prohibited.
-    int_regex = ~r{^(?<sign>\+|-)?(?<number>\d|([1-9](\d|(_\d))+))$}
-    {factor, int_str} = case Regex.named_captures(int_regex, int_str) do
-      %{"sign" => "+", "number" => number} -> { 1, number}
-      %{"sign" => "-", "number" => number} -> {-1, number}
-      %{"sign" => "", "number" => number}  -> { 1, number}
-      nil -> raise "Unable to parse integer: #{inspect int_str}"
-    end
-    factor * (int_str |> String.replace("_", "") |> String.to_integer)
+    s |> intermediate_repr |> compress_intermediate |> kv_pairs_to_map
   end
 
   def concat(r1, r2) do
@@ -68,6 +56,18 @@ defmodule Jerry do
       {:ok, x } -> x
       :error -> nil
     end
+  end
+
+  def intermediate2val({:toml_integer, int_str}) do
+    # Leading zeroes are prohibited.
+    int_regex = ~r{^(?<sign>\+|-)?(?<number>\d|([1-9](\d|(_\d))+))$}
+    {factor, int_str} = case Regex.named_captures(int_regex, int_str) do
+      %{"sign" => "+", "number" => number} -> { 1, number}
+      %{"sign" => "-", "number" => number} -> {-1, number}
+      %{"sign" => "", "number" => number}  -> { 1, number}
+      nil -> raise "Unable to parse integer: #{inspect int_str}"
+    end
+    factor * (int_str |> String.replace("_", "") |> String.to_integer)
   end
 
   def intermediate2val({:toml_float, float}) do
@@ -102,7 +102,7 @@ defmodule Jerry do
   def intermediate2val({:toml_boolean, "true"}), do: true
 
   # TODO datetime not supported for now.
-  def intermediate2val(m = {:toml_datetime, dt}), do: m
+  def intermediate2val(m = {:toml_datetime, _}), do: m
 
   def intermediate2val({:toml_array, array}) do
     Enum.map(array, &intermediate2val/1)
@@ -139,14 +139,14 @@ defmodule Jerry do
     Regex.named_captures(~r/^'(?<value>.*)'$/, string)["value"]
   end
 
-  def unquote_string(key_name = ~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
-  def unquote_string(key_name = ~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
+  def unquote_string(~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
+  def unquote_string(~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
   def unquote_string(key_name), do: key_name
 
-  def unquote_table_name(table_name = "[" <> rest) do
+  def unquote_table_name("[" <> rest) do
     rest |> String.replace_suffix("]", "") |> unquote_string
   end
-  def unquote_array_of_tables(name = "[[" <> rest) do
+  def unquote_array_of_tables("[[" <> rest) do
     # TODO perhaps we can refactor this by taking into account that:
     # "Naming rules for each dot separated part are the same as for keys
     # (see definition of Key/Value Pairs)."
@@ -177,7 +177,7 @@ defmodule Jerry do
     next = String.replace(rest, ~r{^.*\n\s*}, "", global: :false)
     parse_key(next)
   end
-  def parse_key(s = "\"" <> rest) do
+  def parse_key("\"" <> rest) do
     case parse_quoted_string(rest) do
       {{:quoted_string, ss}, rest} -> {{:key, ss}, rest}
     end
@@ -220,10 +220,9 @@ defmodule Jerry do
           {:continue, {rest, table_pairs}} ->
             table = {:toml_array_of_tables, table, Enum.reverse(table_pairs)}
             {:continue, {rest, [table | pairs]}}
-          {:parse_array_of_tables, {table, rest}} ->
+          {:parse_array_of_tables, {_table, _rest}} ->
             raise "bang"
           {:eof, table_pairs} ->
-            IO.puts "EOF!!"
             table = {:toml_array_of_tables, table, Enum.reverse(table_pairs)}
             {:eof, [table | pairs]}
         end
@@ -236,10 +235,9 @@ defmodule Jerry do
           {:continue, {rest, table_pairs}} ->
             table = {:toml_table, table, table_pairs}
             {:continue, {rest, [table | pairs]}}
-          {:parse_table, {table, rest}} ->
+          {:parse_table, {_table, _rest}} ->
             raise "bang"
           {:eof, table_pairs} ->
-            IO.puts "EOF!!"
             table = {:toml_table, table, table_pairs}
             {:eof, [table | pairs]}
         end
@@ -297,10 +295,10 @@ defmodule Jerry do
     end
   end
 
-  def parse_value(n = "+" <> rest) do
+  def parse_value(n = "+" <> _) do
     parse_number(n)
   end
-  def parse_value(n = "-" <> rest) do
+  def parse_value(n = "-" <> _) do
     parse_number(n)
   end
   def parse_value("[" <> rest) do
@@ -338,7 +336,7 @@ defmodule Jerry do
   def parse_comma_separated("", pairs), do: Enum.reverse pairs
   def parse_comma_separated(s, pairs) do
     case parse_key(String.trim_leading(s)) do
-      {:parse_table, {table, rest}} ->
+      {:parse_table, {_table, _rest}} ->
         raise "Unexpected: table where comma-separated values were expected."
       {{:key, key}, rest} ->
         IO.puts "rest: #{inspect rest}"
@@ -375,7 +373,7 @@ defmodule Jerry do
         end
     end
     with :nomatch <- result do
-      {number, rest} = case String.split(n, ~r(\s|,), parts: 2) do
+      case String.split(n, ~r(\s|,), parts: 2) do
         [n, rest] -> {{:toml_datetime, n}, rest}
         [n] -> {{:toml_datetime, n}, ""}
       end

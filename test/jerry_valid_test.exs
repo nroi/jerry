@@ -321,6 +321,12 @@ defmodule JerryValidTest do
   #   assert toml == expected
   # end
 
+  test "table-whitespace-key" do
+    toml = File.read!("test/valid/table-whitespace-key.toml") |> Jerry.decode!
+    expected = %{"table_key" => %{}}
+    assert toml == expected
+  end
+
   test "table-whitespace" do
     toml = File.read!("test/valid/table-whitespace.toml") |> Jerry.decode!
     expected = %{"valid key" => %{}}

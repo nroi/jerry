@@ -281,7 +281,7 @@ defmodule JerryValidTest do
       "albums" => [
         %{
           "name" => "Born to Run",
-          "songs": [
+          "songs" => [
             %{"name" => "Jungleland"},
             %{"name" => "Meeting Across the River"}
           ]

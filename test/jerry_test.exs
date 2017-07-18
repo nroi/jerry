@@ -153,7 +153,7 @@ defmodule JerryTest do
     assert Jerry.intermediate_repr(s) == expected
   end
 
-  test "multiline strings are supposed" do
+  test "multiline strings are supported" do
     s = ~S(str3 = """\
        The quick brown \
        fox jumps over \

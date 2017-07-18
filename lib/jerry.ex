@@ -289,7 +289,7 @@ defmodule Jerry do
   def parse_value("'" <> rest) do
     # single quoted strings must not contain single quoted strings, so we can just assume that the
     # string ends with the next single quote.
-    case Regex.run(~r{^(.*?)'(.*)}, rest, capture: :all_but_first) do
+    case Regex.run(~r{^(.*?)'(.*)}s, rest, capture: :all_but_first) do
       [match, rest] ->
         {{:toml_basic_string, "'#{match}'"}, rest}
     end

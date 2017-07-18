@@ -138,6 +138,18 @@ defmodule Jerry do
     String.replace_suffix(rest, "'", "")
   end
 
+  def intermediate2val({:toml_multiline_basic_string, ~s("""\n) <> rest}) do
+    # "A newline immediately following the opening delimiter will be trimmed."
+    rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string
+  end
+  def intermediate2val({:toml_multiline_basic_string, ~s(""") <> rest}) do
+    rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string
+  end
+
+  def trim_multiline_basic_string(s) do
+    String.replace(s, ~r/\\\n\s*/, "")
+  end
+
   def unquote_string(~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
   def unquote_string(~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
   def unquote_string(key_name), do: key_name
@@ -188,7 +200,7 @@ defmodule Jerry do
     {table, rest} = split_newline(k)
     {:parse_array_of_tables, {table, rest}}
   end
-  def parse_key(k = "[\"" <> rest) do
+  def parse_key("[\"" <> rest) do
     {{:quoted_string, table}, "]" <> rest} = parse_quoted_string(rest)
     {:parse_table, {"[" <> table <> "]", skip_comment(rest)}}
   end

@@ -167,7 +167,9 @@ defmodule Jerry do
 
   def unquote_string(~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
   def unquote_string(~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
-  def unquote_string(key_name), do: key_name
+  def unquote_string(key_name) do
+    Regex.named_captures(~r/^(#{@ws})(?<key>.*?)(#{@ws})$/, key_name)["key"]
+  end
 
   def unquote_table_name("[\"" <> rest) do
     rest |> String.replace_suffix("\"]", "") |> unquote_string

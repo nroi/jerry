@@ -3,6 +3,13 @@ defmodule Jerry do
   Documentation for Jerry.
   """
 
+  require Jerry.Utils.Macros
+  import Jerry.Utils.Macros
+
+  # TODO there are multiple occurences where whitespace is removed. Make sure that we always use
+  # this regex for removing whitespace.
+  @ws source ~r/( |\t)*/
+
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, where we can assume lines always end with \n.
     case key_value_pairs(normalize(s), kv_pairs, false) do

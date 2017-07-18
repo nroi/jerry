@@ -299,7 +299,7 @@ defmodule JerryValidTest do
   end
 
   test "table-array-one" do
-    toml = File.read!("test/valid/table-array-nest.toml") |> Jerry.decode!
+    toml = File.read!("test/valid/table-array-one.toml") |> Jerry.decode!
     expected = %{
       "people" => [
         %{"first_name" => "Bruce", "last_name" => "Springsteen"}

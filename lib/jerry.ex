@@ -145,6 +145,12 @@ defmodule Jerry do
   def intermediate2val({:toml_multiline_basic_string, ~s(""") <> rest}) do
     rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string
   end
+  def intermediate2val({:toml_multiline_basic_string, ~s('''\n) <> rest}) do
+    String.replace_suffix(rest, ~s('''), "")
+  end
+  def intermediate2val({:toml_multiline_basic_string, ~s(''') <> rest}) do
+    String.replace_suffix(rest, ~s('''), "")
+  end
 
   def trim_multiline_basic_string(s) do
     String.replace(s, ~r/\\\n\s*/, "")

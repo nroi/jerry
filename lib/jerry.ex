@@ -69,7 +69,7 @@ defmodule Jerry do
 
   def intermediate2val({:toml_integer, int_str}) do
     # Leading zeroes are prohibited.
-    int_regex = ~r{^(?<sign>\+|-)?(?<number>\d|([1-9](\d|(_\d))+))$}
+    int_regex = ~r/^(?<sign>\+|-)?(?<number>\d|([1-9](\d|(_\d))+))$/
     {factor, int_str} = case Regex.named_captures(int_regex, int_str) do
       %{"sign" => "+", "number" => number} -> { 1, number}
       %{"sign" => "-", "number" => number} -> {-1, number}
@@ -203,7 +203,7 @@ defmodule Jerry do
   end
   def parse_key("#" <> rest) do
     # Skip comment and trailing space after that comment.
-    next = String.replace(rest, ~r{^.*\n(#{@wsn})*}, "", global: :false)
+    next = String.replace(rest, ~r/^.*\n(#{@wsn})*/, "", global: :false)
     parse_key(next)
   end
   def parse_key("\"" <> rest) do
@@ -224,19 +224,19 @@ defmodule Jerry do
     {:parse_table, {table, rest}}
   end
   def parse_key(s) do
-    [key, rest] = String.split(s, ~r(\s*=\s*), parts: 2)
+    [key, rest] = String.split(s, ~r/(#{@ws})=(#{@ws})/, parts: 2)
     {{:key, key}, rest}
   end
 
   defp split_newline(s) do
-    case Regex.named_captures(~r/^(?<name>.*?)\s*(#.*?)?\n(?<rest>.*)/s, s) do
+    case Regex.named_captures(~r/^(?<name>.*?)(#{@ws})(#.*?)?\n(?<rest>.*)/s, s) do
       %{"name" => name, "rest" => rest} -> {name, rest}
     end
   end
 
   defp skip_comment(s) do
     # Ignore all comment lines, as well as leading whitespace followed by those comment lines.
-    String.replace(s, ~r/^(\s*(#.*)?\n)*\s*/, "")
+    String.replace(s, ~r/^((#{@ws})(#.*)?\n)*(#{@ws})/, "")
   end
 
   def key_value_pairs("", pairs, _), do: {:eof, pairs}
@@ -275,7 +275,7 @@ defmodule Jerry do
         end
       {{:key, key}, rest} ->
         IO.puts "rest: #{inspect rest}"
-        rest = String.replace(rest, ~r(^\s*=\s*), "")
+        rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
         IO.puts "rest: #{inspect rest}"
         {value, rest} = parse_value(skip_comment(rest))
         new_pair = {:key, key, value}
@@ -304,7 +304,7 @@ defmodule Jerry do
   def parse_value("'" <> rest) do
     # single quoted strings must not contain single quoted strings, so we can just assume that the
     # string ends with the next single quote.
-    case Regex.run(~r{^(.*?)'(.*)}s, rest, capture: :all_but_first) do
+    case Regex.run(~r/^(.*?)'(.*)/s, rest, capture: :all_but_first) do
       [match, rest] ->
         {{:toml_basic_string, "'#{match}'"}, rest}
     end
@@ -359,7 +359,7 @@ defmodule Jerry do
   def parse_values("]" <> rest, acc), do: { Enum.reverse(acc), rest }
   def parse_values(n, acc) do
     {value, rest} = case parse_value(n) do
-      {v, r} -> {v, Regex.replace(~r(^\s*,?\s*), r, "", global: false)}
+      {v, r} -> {v, Regex.replace(~r/^(#{@ws}),?(#{@ws})/, r, "", global: false)}
     end
     parse_values(skip_comment(rest), [value | acc])
   end
@@ -372,11 +372,11 @@ defmodule Jerry do
         raise "Unexpected: table where comma-separated values were expected."
       {{:key, key}, rest} ->
         IO.puts "rest: #{inspect rest}"
-        rest = String.replace(rest, ~r(^\s*=\s*), "")
+        rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
         IO.puts "> rest: #{inspect rest}"
         {value, rest} = parse_value(rest)
         IO.puts ">> rest: #{inspect rest}"
-        rest = String.replace(rest, ~r{^\s*,\s*}, "")
+        rest = String.replace(rest, ~r/^(#{@ws}),(#{@ws})/, "")
         IO.puts ">> rest: #{inspect rest}"
         new_pair = {:key, key, value}
         parse_comma_separated(rest, [new_pair | pairs])
@@ -386,11 +386,11 @@ defmodule Jerry do
 
   def parse_number(n) do
     # TODO do we still need $ in the regexes, now that we append \n to the end of the string?
-    num_regex = ~r{^(?<number>(\d|-|e|E|\+|-|_|\.|:|Z|T)*)(?<rest>(\s|,|]|$).*)}s
+    num_regex = ~r/^(?<number>(\d|-|e|E|\+|-|_|\.|:|Z|T)*)(?<rest>(\s|,|]|$).*)/s
     {number, rest} = case Regex.named_captures(num_regex, n) do
       %{"number" => nn, "rest" => r} -> {nn, r}
     end
-    float_regex = ~r{^((\+|-)?(\d((_\d)*)?)+(\.(\d((_\d)*)?)+)?((e|E)(\+|-)?\d+)?)$}s
+    float_regex = ~r/^((\+|-)?(\d((_\d)*)?)+(\.(\d((_\d)*)?)+)?((e|E)(\+|-)?\d+)?)$/s
     result = case Regex.run(float_regex, number) do
       nil -> :nomatch
       _match ->
@@ -405,7 +405,7 @@ defmodule Jerry do
         end
     end
     with :nomatch <- result do
-      case String.split(n, ~r(\s|,), parts: 2) do
+      case String.split(n, ~r/\s|,/, parts: 2) do
         [n, rest] -> {{:toml_datetime, n}, rest}
         [n] -> {{:toml_datetime, n}, ""}
       end

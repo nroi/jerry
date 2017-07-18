@@ -1,9 +1,8 @@
 defmodule Jerry.Utils.Macros do
 
   defmacro source(regex) do
-    case regex do
-      {:sigil_r, [_], [{:<<>>, [_], [s]}, []]} ->
-        s
+    quote do
+      Regex.source(unquote(regex))
     end
   end
 

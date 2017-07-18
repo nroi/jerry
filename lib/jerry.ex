@@ -8,7 +8,9 @@ defmodule Jerry do
 
   # TODO there are multiple occurences where whitespace is removed. Make sure that we always use
   # this regex for removing whitespace.
-  @ws source ~r/( |\t)*/
+  @wschar source ~r/ |\t/
+  @ws     source ~r/(#{@wschar})*/
+  @wsn    source ~r/(#{@wschar}|\n)*/
 
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, where we can assume lines always end with \n.
@@ -160,7 +162,7 @@ defmodule Jerry do
   end
 
   def trim_multiline_basic_string(s) do
-    String.replace(s, ~r/\\\n\s*/, "")
+    String.replace(s, ~r/\\(#{@wsn})*/, "")
   end
 
   def unquote_string(~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
@@ -201,7 +203,7 @@ defmodule Jerry do
   end
   def parse_key("#" <> rest) do
     # Skip comment and trailing space after that comment.
-    next = String.replace(rest, ~r{^.*\n\s*}, "", global: :false)
+    next = String.replace(rest, ~r{^.*\n(#{@wsn})*}, "", global: :false)
     parse_key(next)
   end
   def parse_key("\"" <> rest) do

@@ -199,7 +199,7 @@ defmodule JerryValidTest do
   end
 
   test "raw-multiline-string" do
-    toml = File.read!("test/valid/multiline-string.toml") |> Jerry.decode!
+    toml = File.read!("test/valid/raw-multiline-string.toml") |> Jerry.decode!
     expected = %{
       "oneline" => ~s(This string has a ' quote character.),
       "firstnl" => ~s(This string has a ' quote character.),

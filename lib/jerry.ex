@@ -10,6 +10,9 @@ defmodule Jerry do
   @wschar source ~r/ |\t/
   @ws     source ~r/(#{@wschar})*/
   @wsn    source ~r/(#{@wschar}|\n)*/
+  @hexdig source ~r/\d|[A-F]/
+  @hex4   source ~r/\\u(#{@hexdig}){4}/
+  @hex8   source ~r/\\U(#{@hexdig}){8}/
 
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, where we can assume lines always end with \n.
@@ -160,20 +163,24 @@ defmodule Jerry do
     String.replace_suffix(rest, ~s('''), "")
   end
 
-  def unescape(s) do
-    # TODO unicode escape sequences.
-    s
-    |> String.replace(~S(\b), "\b")
-    |> String.replace(~S(\t), "\t")
-    |> String.replace(~S(\n), "\n")
-    |> String.replace(~S(\f), "\f")
-    |> String.replace(~S(\r), "\r")
-    |> String.replace(~S(\"), "\"")
-    |> String.replace(~S(\\), "\\")
+  def unescape(~S(\b) <> rest), do: "\b" <> unescape(rest)
+  def unescape(~S(\t) <> rest), do: "\t" <> unescape(rest)
+  def unescape(~S(\n) <> rest), do: "\n" <> unescape(rest)
+  def unescape(~S(\f) <> rest), do: "\f" <> unescape(rest)
+  def unescape(~S(\r) <> rest), do: "\r" <> unescape(rest)
+  def unescape(~S(\") <> rest), do: "\"" <> unescape(rest)
+  def unescape(~S(\\) <> rest), do: "\\" <> unescape(rest)
+  def unescape(~S(\u) <> <<hex::bytes-size(4)>> <> rest) do
+    hex2scalar_unicode(hex) <> unescape(rest)
   end
+  def unescape(~S(\U) <> <<hex::bytes-size(8)>> <> rest) do
+    hex2scalar_unicode(hex) <> unescape(rest)
+  end
+  def unescape(<<c::utf8, rest::binary>>) do
+    to_string([c]) <> unescape(rest)
+  end
+  def unescape(""), do: ""
 
-  # Given a unicode escape sequence such as "\\u00E9", replace it with the corresponding unicode
-  # character if and only if the character is a unicode scalar value.
   def replace_unicode_scalar("\\u" <> rest) when byte_size(rest) == 4 do
     hex2scalar_unicode(rest)
   end

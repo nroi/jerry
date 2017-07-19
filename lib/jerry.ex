@@ -143,7 +143,7 @@ defmodule Jerry do
     rest |> String.replace_suffix(~s("), "") |> unescape
   end
   def intermediate2val({:toml_basic_string, ~s(') <> rest}) do
-    rest |> String.replace_suffix("'", "") |> unescape
+    String.replace_suffix(rest, "'", "")
   end
 
   def intermediate2val({:toml_multiline_basic_string, ~s("""\n) <> rest}) do

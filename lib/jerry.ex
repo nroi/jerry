@@ -6,8 +6,7 @@ defmodule Jerry do
   require Jerry.Utils.Macros
   import Jerry.Utils.Macros
 
-  # TODO there are multiple occurences where whitespace is removed. Make sure that we always use
-  # this regex for removing whitespace.
+  # TODO Check out the abnf file for the TOML grammar, then introduce more regexes.
   @wschar source ~r/ |\t/
   @ws     source ~r/(#{@wschar})*/
   @wsn    source ~r/(#{@wschar}|\n)*/

@@ -10,9 +10,6 @@ defmodule Jerry do
   @wschar source ~r/ |\t/
   @ws     source ~r/(#{@wschar})*/
   @wsn    source ~r/(#{@wschar}|\n)*/
-  @hexdig source ~r/\d|[A-F]/
-  @hex4   source ~r/\\u(#{@hexdig}){4}/
-  @hex8   source ~r/\\U(#{@hexdig}){8}/
 
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, where we can assume lines always end with \n.

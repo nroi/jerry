@@ -140,10 +140,10 @@ defmodule Jerry do
   end
 
   def intermediate2val({:toml_basic_string, ~s(") <> rest}) do
-    String.replace_suffix(rest, ~s("), "")
+    rest |> String.replace_suffix(~s("), "") |> unescape
   end
   def intermediate2val({:toml_basic_string, ~s(') <> rest}) do
-    String.replace_suffix(rest, "'", "")
+    rest |> String.replace_suffix("'", "") |> unescape
   end
 
   def intermediate2val({:toml_multiline_basic_string, ~s("""\n) <> rest}) do
@@ -158,6 +158,18 @@ defmodule Jerry do
   end
   def intermediate2val({:toml_multiline_basic_string, ~s(''') <> rest}) do
     String.replace_suffix(rest, ~s('''), "")
+  end
+
+  def unescape(s) do
+    # TODO unicode escape sequences.
+    s
+    |> String.replace(~S(\b), "\b")
+    |> String.replace(~S(\t), "\t")
+    |> String.replace(~S(\n), "\n")
+    |> String.replace(~S(\f), "\f")
+    |> String.replace(~S(\r), "\r")
+    |> String.replace(~S(\"), "\"")
+    |> String.replace(~S(\\), "\\")
   end
 
   def trim_multiline_basic_string(s) do

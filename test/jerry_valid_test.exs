@@ -229,9 +229,20 @@ defmodule JerryValidTest do
   end
 
   test "string-escapes" do
-    toml = File.read!("test/valid/string-empty.toml") |> Jerry.decode!
-    expected = %{}
-    # TODO figure out how escapes work.
+    toml = File.read!("test/valid/string-escapes.toml") |> Jerry.decode!
+    expected = %{
+      "backspace" => "This string has a \b backspace character.",
+      "tab" => "This string has a \t tab character.",
+      "newline" => "This string has a \n new line character.",
+      "formfeed" => "This string has a \f form feed character.",
+      "carriage" => "This string has a \r carriage return character.",
+      "quote" => "This string has a \" quote character.",
+      "backslash" => "This string has a \\ backslash character.",
+      "notunicode1" => "This string does not have a unicode \\u escape.",
+      "notunicode2" => "This string does not have a unicode \\u escape.",
+      "notunicode3" => "This string does not have a unicode \\u0075 escape.",
+      "notunicode4" => "This string does not have a unicode \\u escape.",
+    }
     assert toml == expected
   end
 

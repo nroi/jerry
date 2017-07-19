@@ -172,6 +172,27 @@ defmodule Jerry do
     |> String.replace(~S(\\), "\\")
   end
 
+  # Given a unicode escape sequence such as "\\u00E9", replace it with the corresponding unicode
+  # character if and only if the character is a unicode scalar value.
+  def replace_unicode_scalar("\\u" <> rest) when byte_size(rest) == 4 do
+    hex2scalar_unicode(rest)
+  end
+  def replace_unicode_scalar("\\U" <> rest) when byte_size(rest) == 8 do
+    hex2scalar_unicode(rest)
+  end
+
+  def hex2scalar_unicode(hex) do
+    {codepoint, ""} = Integer.parse(hex, 16)
+    is_scalar = codepoint >= 0 && codepoint <= 0xD7FF ||
+                codepoint >= 0xE000 && codepoint <= 0x10FFFF
+    if is_scalar do
+      <<codepoint::utf8>>
+    else
+      raise "Not a unicode scalar value: #{inspect hex}"
+    end
+  end
+
+
   def trim_multiline_basic_string(s) do
     String.replace(s, ~r/\\(#{@wsn})*/, "")
   end

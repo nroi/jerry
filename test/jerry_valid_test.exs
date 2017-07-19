@@ -352,8 +352,10 @@ defmodule JerryValidTest do
 
   test "unicode-escape" do
     toml = File.read!("test/valid/unicode-escape.toml") |> Jerry.decode!
-    expected = %{}
-    # TODO
+    expected = %{
+      "answer4" => "δ",
+      "answer8" => "δ"
+    }
     assert toml == expected
   end
 

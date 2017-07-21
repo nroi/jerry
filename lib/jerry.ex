@@ -10,6 +10,19 @@ defmodule Jerry do
   @wschar source ~r/ |\t/
   @ws     source ~r/(#{@wschar})*/
   @wsn    source ~r/(#{@wschar}|\n)*/
+  @hexdig source ~r/\d|[A-F]/
+  @hex4   source ~r/\\u(#{@hexdig}){4}/
+  @hex8   source ~r/\\U(#{@hexdig}){8}/
+  @unquoted_key source ~r/([[:alnum:]]|-|_)+/
+  @basic_unescaped source ~r/[#{"\u0020"}-#{"\u0021"}]|[#{"\u0023"}-#{"\u005B"}]|[#{"\u005d"}-#{"\u10FFFF"}]/
+  @escaped source ~r{\\("|\\|/|b|f|n|r|t||(#{@hex4})|(#{@hex8}))}
+  @basic_char source ~r/(#{@basic_unescaped})|(#{@escaped})/
+  @quoted_key source ~r/"(#{@basic_char})+"/
+  @key source ~r/(#{@quoted_key})|(#{@unquoted_key})/
+
+  def escaped, do: @escaped
+  def quoted_key, do: @quoted_key
+  def basic_unesaped, do: @basic_unescaped
 
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, where we can assume lines always end with \n.
@@ -36,6 +49,17 @@ defmodule Jerry do
     Enum.map(compressed, fn {name, arrays} ->
       {:toml_arrays_of_tables, name, arrays}
     end) ++ other
+  end
+
+  # Given :toml_tables with names such as [foo.bar], move them into the correct table (e.g., [bar]).
+  def compress_tables(intermediate_repr) do
+    inner_tables = Enum.filter(intermediate_repr, fn
+      {:toml_table, name, _kv_pairs} ->
+        # TODO this won't work when we have non-bare keys, which may contain a dot that isn't being
+        # used as separator.
+        String.contains?(name, ".")
+       _ -> false
+    end)
   end
 
   def decode!(s) do
@@ -119,6 +143,9 @@ defmodule Jerry do
   def intermediate2val({:toml_table, name, table_pairs}) do
     kv_pairs = Enum.map(table_pairs, fn
       {:key, name, value} -> {unquote_string(name), intermediate2val(value)}
+      {:toml_table, name, kv_pairs} ->
+        # TODO fetch the correct name (i.e. the suffix).
+        {unquote_string(name), kv_pairs_to_map(kv_pairs)}
     end)
     kv_map = Map.new(kv_pairs)
     {unquote_table_name(name), kv_map}
@@ -158,6 +185,14 @@ defmodule Jerry do
   end
   def intermediate2val({:toml_multiline_basic_string, ~s(''') <> rest}) do
     String.replace_suffix(rest, ~s('''), "")
+  end
+
+  def table_name(""), do: []
+  def table_name(s) do
+    case Regex.named_captures(~r/^(?<key>(#{@key}))(($|\.)(?<rest>.*))/, s) do
+      %{"key" => key, "rest" => rest} ->
+        [key | table_name(rest)]
+    end
   end
 
   def unescape(~S(\b) <> rest), do: "\b" <> unescape(rest)

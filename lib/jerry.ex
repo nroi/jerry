@@ -20,9 +20,11 @@ defmodule Jerry do
   @quoted_key source ~r/"(#{@basic_char})+"/
   @key source ~r/(#{@quoted_key})|(#{@unquoted_key})/
 
+  # FIXME used for debugging purposes.
   def escaped, do: @escaped
   def quoted_key, do: @quoted_key
   def basic_unesaped, do: @basic_unescaped
+  def key, do: @key
 
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, where we can assume lines always end with \n.
@@ -32,6 +34,7 @@ defmodule Jerry do
         intermediate_repr(rest, pairs)
     end
   end
+
 
   # the intermediate representation contains tokens in the order they have occured in the original
   # string. This also means that for array of tables, different key-value-pairs belonging to the
@@ -43,23 +46,86 @@ defmodule Jerry do
       {:toml_array_of_tables, _, _} -> true
       _ -> false
     end)
-    compressed = arrays_of_tables |> Enum.group_by(fn {:toml_array_of_tables, name, _} ->
+    {tables, other} = Enum.split_with(other, fn
+      {:toml_table, _name, _kv_pairs} -> true
+      _ -> false
+    end)
+    tables = compress_tables(tables)
+    compressed = Enum.group_by(arrays_of_tables, fn {:toml_array_of_tables, name, _} ->
       unquote_array_of_tables(name)
     end)
     Enum.map(compressed, fn {name, arrays} ->
       {:toml_arrays_of_tables, name, arrays}
-    end) ++ other
+    end) ++ tables ++ other
   end
 
-  # Given :toml_tables with names such as [foo.bar], move them into the correct table (e.g., [bar]).
-  def compress_tables(intermediate_repr) do
-    inner_tables = Enum.filter(intermediate_repr, fn
-      {:toml_table, name, _kv_pairs} ->
-        # TODO this won't work when we have non-bare keys, which may contain a dot that isn't being
-        # used as separator.
-        String.contains?(name, ".")
-       _ -> false
+  # Given two lists l1, l2, where l1 is a prefix of l2. Return the rest of l2, i.e., the part that
+  # does not match l1.
+  def suffix_after_prefix([], l2) do
+    l2
+  end
+  def suffix_after_prefix([x | rest1], [y | rest2])   when x == y do
+    suffix_after_prefix(rest1, rest2)
+  end
+  def suffix_after_prefix([_x|_rest1], []) do
+    :no_prefix
+  end
+  def suffix_after_prefix([x | _rest1], [y | _rest2]) when x != y do
+    :no_prefix
+  end
+
+  # Given tname = [foo.bar.soo], find the table with name "foo.bar".
+  def immediate_predecessor(tname, intermediate_repr) when is_list(tname) do
+    default = case tname do
+      [_ | _] -> {:toml_table, :lists.droplast(tname), []}
+      _ -> nil
+    end
+    # The default toml table with an empty list as kv_pairs should be used if and only if a table
+    # such as a.b.c is referred to in the toml file, but no table a.b was declared.
+    Enum.find(intermediate_repr, default, fn
+      {:toml_table, n1, _kv_pairs} ->
+        case suffix_after_prefix(n1, tname) do
+          [_name] -> true
+          _ -> false
+        end
     end)
+  end
+
+  # Given a flat list of {:toml_table, _, _}, return the nested list where each table with a name
+  # containing a dot is put inside the appropriate table. For example, a table named "foo.bar" is
+  # put inside the table named foo. Also, tables are renamed such that they contain the last part
+  # only (e.g. "foo.bar.baz" is renamed to "baz").
+  def compress_tables(tables) do
+    tables
+    |> Enum.map(fn
+      {:toml_table, name, kv_pairs} -> {:toml_table, table_name(name), kv_pairs}
+    end)
+    |> Enum.sort(
+      fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
+        Enum.count(n1) >= Enum.count(n2)
+      end)
+    |> compress_tables_rec
+  end
+
+  # Input is sorted by the nesting level of the table's name, in descending order:
+  # If the name is a singleton list, we are done.
+  defp compress_tables_rec([]), do: []
+  defp compress_tables_rec(tables = [{:toml_table, [_name], _kv_pairs} | _]), do: tables
+  defp compress_tables_rec([t = {:toml_table, tname, tkv_pairs} | rest]) when is_list(tname) do
+    case immediate_predecessor(tname, rest) do
+      {:toml_table, name, kv_pairs} ->
+        rest2 = Enum.filter(rest, fn
+          {:toml_table, n, _} -> n != name
+        end)
+        # TODO code duplication (sort). also, we don't need to sort, we just have to check if the
+        # first few elements need to be swapped.
+        inner = {:toml_table, [:lists.last(tname)], tkv_pairs}
+        rest_tables = [{:toml_table, name, [inner | kv_pairs]} | rest2] |> Enum.sort(
+          fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
+            Enum.count(n1) >= Enum.count(n2)
+          end)
+        compress_tables_rec(rest_tables)
+    end
   end
 
   def decode!(s) do
@@ -140,15 +206,15 @@ defmodule Jerry do
     Enum.map(array, &intermediate2val/1)
   end
 
-  def intermediate2val({:toml_table, name, table_pairs}) do
+  def intermediate2val({:toml_table, [name], table_pairs}) do
     kv_pairs = Enum.map(table_pairs, fn
       {:key, name, value} -> {unquote_string(name), intermediate2val(value)}
-      {:toml_table, name, kv_pairs} ->
+      {:toml_table, [name], kv_pairs} ->
         # TODO fetch the correct name (i.e. the suffix).
         {unquote_string(name), kv_pairs_to_map(kv_pairs)}
     end)
     kv_map = Map.new(kv_pairs)
-    {unquote_table_name(name), kv_map}
+    {unquote_string(name), kv_map}
   end
 
   def intermediate2val({:toml_inline_table, table_pairs}) do
@@ -189,7 +255,10 @@ defmodule Jerry do
 
   def table_name(""), do: []
   def table_name(s) do
-    case Regex.named_captures(~r/^(?<key>(#{@key}))(($|\.)(?<rest>.*))/, s) do
+    # TODO we use optional leading [ and optional trailing ], this is not correct.
+    # Make sure this function is always or never called with leading and trailing [], and adapt the
+    # regex accordingly.
+    case Regex.named_captures(~r/^(\[#{@ws})?(?<key>(#{@key}))((((#{@ws})\])|$|\.)(?<rest>.*))/, s) do
       %{"key" => key, "rest" => rest} ->
         [key | table_name(rest)]
     end
@@ -242,12 +311,6 @@ defmodule Jerry do
     Regex.named_captures(~r/^(#{@ws})(?<key>.*?)(#{@ws})$/, key_name)["key"]
   end
 
-  def unquote_table_name("[\"" <> rest) do
-    rest |> String.replace_suffix("\"]", "") |> unquote_string
-  end
-  def unquote_table_name("[" <> rest) do
-    rest |> String.replace_suffix("]", "") |> unquote_string
-  end
   def unquote_array_of_tables("[[" <> rest) do
     # TODO perhaps we can refactor this by taking into account that:
     # "Naming rules for each dot separated part are the same as for keys

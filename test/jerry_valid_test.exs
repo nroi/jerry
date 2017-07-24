@@ -365,6 +365,16 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "table-key-quoted" do
+    toml = File.read!("test/valid/table-key-quoted.toml") |> Jerry.decode!
+    expected = %{
+      "foo" => %{
+        " bar " => %{}
+      }
+    }
+    assert toml == expected
+  end
+
   test "unicode-escape" do
     toml = File.read!("test/valid/unicode-escape.toml") |> Jerry.decode!
     expected = %{

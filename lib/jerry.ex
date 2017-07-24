@@ -300,7 +300,6 @@ defmodule Jerry do
     end
   end
 
-
   def trim_multiline_basic_string(s) do
     String.replace(s, ~r/\\(#{@wsn})*/, "")
   end
@@ -377,7 +376,6 @@ defmodule Jerry do
 
   def key_value_pairs("", pairs, _), do: {:eof, pairs}
   def key_value_pairs(s, pairs, inside_table) do
-    IO.puts "key_value_pairs(#{inspect s})"
     case parse_key(String.trim_leading(s)) do
       {:parse_array_of_tables, {table, rest}} when inside_table ->
         # Do not parse this table as the values of a preceding table.
@@ -398,7 +396,6 @@ defmodule Jerry do
         # Do not parse this table as the values of a preceding table.
         {:continue, {table <> "\n" <> rest, pairs}}
       {:parse_table, {table, rest}} when not inside_table ->
-        IO.inspect "Fetch values for table #{inspect table}…"
         case key_value_pairs(rest, [], true) do
           {:continue, {rest, table_pairs}} ->
             table = {:toml_table, table, table_pairs}
@@ -408,9 +405,7 @@ defmodule Jerry do
             {:eof, [table | pairs]}
         end
       {{:key, key}, rest} ->
-        IO.puts "rest: #{inspect rest}"
         rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
-        IO.puts "rest: #{inspect rest}"
         {value, rest} = parse_value(skip_comment(rest))
         new_pair = {:key, key, value}
         key_value_pairs(String.trim_leading(rest), [new_pair | pairs], inside_table)
@@ -478,11 +473,9 @@ defmodule Jerry do
     # break an inline table onto multiples lines. If you find yourself gripped with this desire, it
     # means you should be using standard tables."
     # To make things easier, we just assume that inline tables appear on a single line for now.
-    IO.puts "parse_value({ rest = #{inspect rest}"
     {value_string, rest} = case Regex.run(~r/(.*?)}(.*)/s, rest, capture: :all_but_first) do
       [vs, r] -> {String.trim_leading(vs), r}
     end
-    IO.puts "run key_value_str with #{inspect(value_string)}"
     kv_pairs = parse_comma_separated(value_string <> "\n", [])
     {{:toml_inline_table, kv_pairs}, rest}
   end
@@ -505,13 +498,9 @@ defmodule Jerry do
       {:parse_table, {_table, _rest}} ->
         raise "Unexpected: table where comma-separated values were expected."
       {{:key, key}, rest} ->
-        IO.puts "rest: #{inspect rest}"
         rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
-        IO.puts "> rest: #{inspect rest}"
         {value, rest} = parse_value(rest)
-        IO.puts ">> rest: #{inspect rest}"
         rest = String.replace(rest, ~r/^(#{@ws}),(#{@ws})/, "")
-        IO.puts ">> rest: #{inspect rest}"
         new_pair = {:key, key, value}
         parse_comma_separated(rest, [new_pair | pairs])
       :eof -> Enum.reverse pairs

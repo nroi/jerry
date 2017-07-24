@@ -270,15 +270,17 @@ defmodule JerryTest do
     repr = [
       {:toml_table, "foo", [1]},
       {:toml_table, "foo.bar", [2]},
-      {:toml_table, "foo.bar.baz", [3]}
+      {:toml_table, "foo.bbb", []},
+      {:toml_table, "foo.bar.baz", [3]},
     ]
     expected = [
       {:toml_table, ["foo"], [
-        {:toml_table, ["foo", "bar"], [
-          {:toml_table, ["foo", "bar", "baz"], [3]},
+        {:toml_table, ["bbb"], []},
+        {:toml_table, ["bar"], [
+          {:toml_table, ["baz"], [3]},
         2]},
       1]}
     ]
-    assert Jerry.compress_ttables(repr) == expected
+    assert Jerry.compress_tables(repr) == expected
   end
 end

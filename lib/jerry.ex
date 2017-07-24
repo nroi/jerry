@@ -81,7 +81,7 @@ defmodule Jerry do
       [_ | _] -> {:toml_table, :lists.droplast(tname), []}
       _ -> nil
     end
-    # The default toml table with an empty list as kv_pairs should be used if and only if a table
+    # The default TOML table with an empty list as kv_pairs should be used if and only if a table
     # such as a.b.c is referred to in the toml file, but no table a.b was declared.
     Enum.find(intermediate_repr, default, fn
       {:toml_table, n1, _kv_pairs} ->
@@ -92,16 +92,22 @@ defmodule Jerry do
     end)
   end
 
+  defp sort_toml_tables(tables) do
+    # TODO performance: we sort the tables multiple times, when in fact we only need fast access to
+    # the element with the highest nesting level. Perhaps we should use Erlang's :gb_trees module
+    # instead of continuously sorting a list.
+    Enum.sort(tables, fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
+      length(n1) >= length(n2)
+    end)
+  end
+
   # Given a flat list of {:toml_table, _, _}, return the nested list where each table with a name
   # containing a dot is put inside the appropriate table. For example, a table named "foo.bar" is
   # put inside the table named foo. Also, tables are renamed such that they contain the last part
-  # only (e.g. "foo.bar.baz" is renamed to "baz").
+  # only (e.g. ["foo", "bar", "baz"] is renamed to ["baz"]).
   def compress_tables(tables) do
     tables
-    |> Enum.sort(
-      fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
-        length(n1) >= length(n2)
-      end)
+    |> sort_toml_tables
     |> compress_tables_rec
   end
 
@@ -115,13 +121,8 @@ defmodule Jerry do
         rest2 = Enum.filter(rest, fn
           {:toml_table, n, _} -> n != name
         end)
-        # TODO code duplication (sort). also, we don't need to sort, we just have to check if the
-        # first few elements need to be swapped.
         inner = {:toml_table, [:lists.last(tname)], tkv_pairs}
-        rest_tables = [{:toml_table, name, [inner | kv_pairs]} | rest2] |> Enum.sort(
-          fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
-            length(n1) >= length(n2)
-          end)
+        rest_tables = [{:toml_table, name, [inner | kv_pairs]} | rest2] |> sort_toml_tables
         compress_tables_rec(rest_tables)
     end
   end
@@ -517,8 +518,6 @@ defmodule Jerry do
         if String.contains?(number, ".") ||
            String.contains?(number, "e") ||
            String.contains?(number, "E") do
-          # TODO do something useful with the matched variables, so we don't have to run the regex
-          # once more.
           {{:toml_float, number}, rest}
         else
           {{:toml_integer, number}, rest}

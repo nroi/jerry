@@ -302,6 +302,20 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "table-hierarchy" do
+    toml = File.read!("test/valid/table-hierarchy.toml") |> Jerry.decode!
+    expected = %{
+      "foo" => %{
+        "one" => 1,
+        "bar" => %{
+          "two" => 2, "baz" => %{"three" => 3}
+        },
+        "bbb" => %{},
+      }
+    }
+    assert toml == expected
+  end
+
   test "table-array-nest" do
     toml = File.read!("test/valid/table-array-nest.toml") |> Jerry.decode!
     expected = %{

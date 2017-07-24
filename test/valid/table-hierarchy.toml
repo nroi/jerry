@@ -1,0 +1,10 @@
+[foo]
+one = 1
+
+[foo.bar]
+two = 2
+
+[foo.bbb]
+
+[foo.bar.baz]
+three = 3

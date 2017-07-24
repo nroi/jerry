@@ -97,9 +97,6 @@ defmodule Jerry do
   # only (e.g. "foo.bar.baz" is renamed to "baz").
   def compress_tables(tables) do
     tables
-    |> Enum.map(fn
-      {:toml_table, name, kv_pairs} -> {:toml_table, table_name(name), kv_pairs}
-    end)
     |> Enum.sort(
       fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
         Enum.count(n1) >= Enum.count(n2)
@@ -208,10 +205,12 @@ defmodule Jerry do
 
   def intermediate2val({:toml_table, [name], table_pairs}) do
     kv_pairs = Enum.map(table_pairs, fn
+      # TODO note that this is inconsistent: we unquote_string for normal keys, but we don't for
+      # table keys. We should probably change the parsing so that keys are already unquoted.
       {:key, name, value} -> {unquote_string(name), intermediate2val(value)}
       {:toml_table, [name], kv_pairs} ->
         # TODO fetch the correct name (i.e. the suffix).
-        {unquote_string(name), kv_pairs_to_map(kv_pairs)}
+        {name, kv_pairs_to_map(kv_pairs)}
     end)
     kv_map = Map.new(kv_pairs)
     {unquote_string(name), kv_map}
@@ -253,14 +252,16 @@ defmodule Jerry do
     String.replace_suffix(rest, ~s('''), "")
   end
 
-  def table_name(""), do: []
-  def table_name(s) do
-    # TODO we use optional leading [ and optional trailing ], this is not correct.
-    # Make sure this function is always or never called with leading and trailing [], and adapt the
-    # regex accordingly.
-    case Regex.named_captures(~r/^(\[#{@ws})?(?<key>(#{@key}))((((#{@ws})\])|$|\.)(?<rest>.*))/, s) do
+  def remove_suffix(s, suffix), do: String.replace_suffix(s, suffix, "")
+
+  def table_name("[" <> rest) do
+    table_name_rec("." <> remove_suffix(rest, "]"))
+  end
+  def table_name_rec(""), do: []
+  def table_name_rec("." <> s) do
+    case Regex.named_captures(~r/^(#{@ws})(?<key>(#{@key}))((#{@ws})|$)(?<rest>.*)/, s) do
       %{"key" => key, "rest" => rest} ->
-        [key | table_name(rest)]
+        [unquote_string(key) | table_name_rec(rest)]
     end
   end
 
@@ -398,10 +399,10 @@ defmodule Jerry do
       {:parse_table, {table, rest}} when not inside_table ->
         case key_value_pairs(rest, [], true) do
           {:continue, {rest, table_pairs}} ->
-            table = {:toml_table, table, table_pairs}
+            table = {:toml_table, table_name(table), table_pairs}
             {:continue, {rest, [table | pairs]}}
           {:eof, table_pairs} ->
-            table = {:toml_table, table, table_pairs}
+            table = {:toml_table, table_name(table), table_pairs}
             {:eof, [table | pairs]}
         end
       {{:key, key}, rest} ->

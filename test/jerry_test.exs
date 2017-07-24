@@ -86,14 +86,14 @@ defmodule JerryTest do
   end
 
   test "tables can contain key-value mappings" do
-    expected = [{:toml_table, ~s([table1]), [{:key, ~s(key1), {:toml_integer, ~s(1)}}]}]
+    expected = [{:toml_table, ["table1"], [{:key, ~s(key1), {:toml_integer, ~s(1)}}]}]
     assert Jerry.intermediate_repr("[table1]\nkey1 = 1") == expected
   end
 
   test "multiple tables are supported" do
     expected = [
-      {:toml_table, ~s([table1]), [{:key, ~s(key1), {:toml_integer, ~s(1)}}]},
-      {:toml_table, ~s([table2]), [{:key, ~s(key2), {:toml_integer, ~s(2)}}]}
+      {:toml_table, ["table1"], [{:key, ~s(key1), {:toml_integer, ~s(1)}}]},
+      {:toml_table, ["table2"], [{:key, ~s(key2), {:toml_integer, ~s(2)}}]}
     ]
     s = ~s([table1]\nkey1 = 1\n[table2]\nkey2 = 2\n)
     assert Jerry.intermediate_repr(s) == expected
@@ -103,7 +103,7 @@ defmodule JerryTest do
     s = "foo = 10\n[table1]\nkey1 = 1"
     expected = [
       {:key, ~s(foo), {:toml_integer, ~s(10)}},
-      {:toml_table, ~s([table1]), [{:key, ~s(key1), {:toml_integer, ~s(1)}}]}
+      {:toml_table, ["table1"], [{:key, ~s(key1), {:toml_integer, ~s(1)}}]}
     ]
     assert Jerry.intermediate_repr(s) == expected
   end
@@ -268,10 +268,10 @@ defmodule JerryTest do
 
   test "compress_tables" do
     repr = [
-      {:toml_table, "foo", [1]},
-      {:toml_table, "foo.bar", [2]},
-      {:toml_table, "foo.bbb", []},
-      {:toml_table, "foo.bar.baz", [3]},
+      {:toml_table, ["foo"], [1]},
+      {:toml_table, ["foo", "bar"], [2]},
+      {:toml_table, ["foo", "bbb"], []},
+      {:toml_table, ["foo", "bar", "baz"], [3]},
     ]
     expected = [
       {:toml_table, ["foo"], [

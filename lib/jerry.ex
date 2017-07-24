@@ -5,6 +5,7 @@ defmodule Jerry do
 
   require Jerry.Utils.Macros
   import Jerry.Utils.Macros
+  import Jerry.StringUtils, only: [remove_suffix: 2]
 
   # TODO Check out the abnf file for the TOML grammar, then introduce more regexes.
   @wschar source ~r/ |\t/
@@ -251,8 +252,6 @@ defmodule Jerry do
   def intermediate2val({:toml_multiline_basic_string, ~s(''') <> rest}) do
     String.replace_suffix(rest, ~s('''), "")
   end
-
-  def remove_suffix(s, suffix), do: String.replace_suffix(s, suffix, "")
 
   def table_name("[" <> rest) do
     table_name_rec("." <> remove_suffix(rest, "]"))

@@ -208,7 +208,6 @@ defmodule Jerry do
     kv_pairs = Enum.map(table_pairs, fn
       {:key, name, value} -> {name, intermediate2val(value)}
       {:toml_table, [name], kv_pairs} ->
-        # TODO fetch the correct name (i.e. the suffix).
         {name, kv_pairs_to_map(kv_pairs)}
     end)
     kv_map = Map.new(kv_pairs)

@@ -111,7 +111,7 @@ defmodule Jerry do
   # If the name is a singleton list, we are done.
   defp compress_tables_rec([]), do: []
   defp compress_tables_rec(tables = [{:toml_table, [_name], _kv_pairs} | _]), do: tables
-  defp compress_tables_rec([t = {:toml_table, tname, tkv_pairs} | rest]) when is_list(tname) do
+  defp compress_tables_rec([{:toml_table, tname, tkv_pairs} | rest]) when is_list(tname) do
     case immediate_predecessor(tname, rest) do
       {:toml_table, name, kv_pairs} ->
         rest2 = Enum.filter(rest, fn
@@ -403,8 +403,6 @@ defmodule Jerry do
           {:continue, {rest, table_pairs}} ->
             table = {:toml_table, table, table_pairs}
             {:continue, {rest, [table | pairs]}}
-          {:parse_table, {_table, _rest}} ->
-            raise "bang"
           {:eof, table_pairs} ->
             table = {:toml_table, table, table_pairs}
             {:eof, [table | pairs]}

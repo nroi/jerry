@@ -99,7 +99,7 @@ defmodule Jerry do
     tables
     |> Enum.sort(
       fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
-        Enum.count(n1) >= Enum.count(n2)
+        length(n1) >= length(n2)
       end)
     |> compress_tables_rec
   end
@@ -119,7 +119,7 @@ defmodule Jerry do
         inner = {:toml_table, [:lists.last(tname)], tkv_pairs}
         rest_tables = [{:toml_table, name, [inner | kv_pairs]} | rest2] |> Enum.sort(
           fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
-            Enum.count(n1) >= Enum.count(n2)
+            length(n1) >= length(n2)
           end)
         compress_tables_rec(rest_tables)
     end

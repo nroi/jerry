@@ -206,9 +206,7 @@ defmodule Jerry do
 
   def intermediate2val({:toml_table, [name], table_pairs}) do
     kv_pairs = Enum.map(table_pairs, fn
-      # TODO note that this is inconsistent: we unquote_string for normal keys, but we don't for
-      # table keys. We should probably change the parsing so that keys are already unquoted.
-      {:key, name, value} -> {unquote_string(name), intermediate2val(value)}
+      {:key, name, value} -> {name, intermediate2val(value)}
       {:toml_table, [name], kv_pairs} ->
         # TODO fetch the correct name (i.e. the suffix).
         {name, kv_pairs_to_map(kv_pairs)}
@@ -334,7 +332,7 @@ defmodule Jerry do
   def parse_key(""), do: :eof
   def parse_key(~s("") <> rest) do
     # A key consisting of "" is allowed in Toml (although discouraged).
-    {{:key, ~s("")}, rest}
+    {{:key, ""}, rest}
   end
   def parse_key("#" <> rest) do
     # Skip comment and trailing space after that comment.
@@ -343,7 +341,7 @@ defmodule Jerry do
   end
   def parse_key("\"" <> rest) do
     case parse_quoted_string(rest) do
-      {{:quoted_string, ss}, rest} -> {{:key, ss}, rest}
+      {{:quoted_string, ss}, rest} -> {{:key, unquote_string(ss)}, rest}
     end
   end
   def parse_key(k = "[[" <> _) do
@@ -360,7 +358,7 @@ defmodule Jerry do
   end
   def parse_key(s) do
     [key, rest] = String.split(s, ~r/(#{@ws})=(#{@ws})/, parts: 2)
-    {{:key, key}, rest}
+    {{:key, unquote_string(key)}, rest}
   end
 
   defp split_newline(s) do
@@ -407,7 +405,7 @@ defmodule Jerry do
       {{:key, key}, rest} ->
         rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
         {value, rest} = parse_value(skip_comment(rest))
-        new_pair = {:key, key, value}
+        new_pair = {:key, unquote_string(key), value}
         key_value_pairs(String.trim_leading(rest), [new_pair | pairs], inside_table)
       :eof -> {:eof, pairs}
     end
@@ -501,7 +499,7 @@ defmodule Jerry do
         rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
         {value, rest} = parse_value(rest)
         rest = String.replace(rest, ~r/^(#{@ws}),(#{@ws})/, "")
-        new_pair = {:key, key, value}
+        new_pair = {:key, unquote_string(key), value}
         parse_comma_separated(rest, [new_pair | pairs])
       :eof -> Enum.reverse pairs
     end

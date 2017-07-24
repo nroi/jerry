@@ -16,32 +16,32 @@ defmodule JerryTest do
   end
 
   test "keys may be quoted" do
-    expected = [{:key, ~s("foo"), {:toml_basic_string, ~s("bar")}}]
+    expected = [{:key, "foo", {:toml_basic_string, ~s("bar")}}]
     assert Jerry.intermediate_repr(~s("foo"="bar")) == expected
   end
 
   test "empty keys are valid (although discouraged)" do
-    expected = [{:key, ~s(""), {:toml_basic_string, ~s("bar")}}]
+    expected = [{:key, "", {:toml_basic_string, ~s("bar")}}]
     assert Jerry.intermediate_repr(~s(""="bar")) == expected
   end
 
   test "quoted keys can contain spaces" do
-    expected = [{:key, ~s("a key with some spaces"), {:toml_basic_string, ~s("bar")}}]
+    expected = [{:key, "a key with some spaces", {:toml_basic_string, ~s("bar")}}]
     assert Jerry.intermediate_repr(~s("a key with some spaces"="bar")) == expected
   end
 
   test "keys can contain an equals sign" do
-    expected = [{:key, ~s("foo=bar"), {:toml_basic_string, ~s("foobar")}}]
+    expected = [{:key, "foo=bar", {:toml_basic_string, ~s("foobar")}}]
     assert Jerry.intermediate_repr(~s("foo=bar" = "foobar")) == expected
   end
 
   test "values can be integers" do
-    expected = [{:key, ~s(foo), {:toml_integer, ~s(10)}}]
+    expected = [{:key, "foo", {:toml_integer, ~s(10)}}]
     assert Jerry.intermediate_repr(~s(foo = 10)) == expected
   end
 
   test "integers may contain underscores" do
-    expected = [{:key, ~s(foo), {:toml_integer, ~s(10_000_000)}}]
+    expected = [{:key, "foo", {:toml_integer, ~s(10_000_000)}}]
     assert Jerry.intermediate_repr(~s(foo = 10_000_000)) == expected
   end
 

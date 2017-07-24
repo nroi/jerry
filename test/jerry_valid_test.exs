@@ -95,49 +95,49 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
-  # TODO not supported yet.
-  # test "implicit-and-explicit-after" do
-  #   toml = File.read!("test/valid/implicit-and-explicit-after.toml") |> Jerry.decode!
-  #   expected = %{
-  #     "a" => %{
-  #       "b" => %{
-  #         "c" => %{
-  #           "answer" => 42
-  #         }
-  #       },
-  #       "better" => 43
-  #     }
-  #   }
-  #   assert toml == expected
-  # end
-  #
-  # test "implicit-and-explicit-before" do
-  #   toml = File.read!("test/valid/implicit-and-explicit-before.toml") |> Jerry.decode!
-  #   expected = %{
-  #     "a" => %{
-  #       "b" => %{
-  #         "c" => %{
-  #           "answer" => 42
-  #         }
-  #       },
-  #       "better" => 43
-  #     }
-  #   }
-  #   assert toml == expected
-  # end
-  # test "implicit-groups" do
-  #   toml = File.read!("test/valid/implicit-groups") |> Jerry.decode!
-  #   expected = %{
-  #     "a" => %{
-  #       "b" => %{
-  #         "c" => %{
-  #           "answer" => 42
-  #         }
-  #       }
-  #     }
-  #   }
-  #   assert toml == expected
-  # end
+  test "implicit-and-explicit-after" do
+    toml = File.read!("test/valid/implicit-and-explicit-after.toml") |> Jerry.decode!
+    expected = %{
+      "a" => %{
+        "b" => %{
+          "c" => %{
+            "answer" => 42
+          }
+        },
+        "better" => 43
+      }
+    }
+    assert toml == expected
+  end
+
+  test "implicit-and-explicit-before" do
+    toml = File.read!("test/valid/implicit-and-explicit-before.toml") |> Jerry.decode!
+    expected = %{
+      "a" => %{
+        "b" => %{
+          "c" => %{
+            "answer" => 42
+          }
+        },
+        "better" => 43
+      }
+    }
+    assert toml == expected
+  end
+
+  test "implicit-groups" do
+    toml = File.read!("test/valid/implicit-groups.toml") |> Jerry.decode!
+    expected = %{
+      "a" => %{
+        "b" => %{
+          "c" => %{
+            "answer" => 42
+          }
+        }
+      }
+    }
+    assert toml == expected
+  end
 
   test "integer" do
     toml = File.read!("test/valid/integer.toml") |> Jerry.decode!
@@ -325,12 +325,11 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
-  # TODO not supported
-  # test "table-sub-empty" do
-  #   toml = File.read!("test/valid/table-sub-empty.toml") |> Jerry.decode!
-  #   expected = %{"a" => %{"b" => %{}}}
-  #   assert toml == expected
-  # end
+  test "table-sub-empty" do
+    toml = File.read!("test/valid/table-sub-empty.toml") |> Jerry.decode!
+    expected = %{"a" => %{"b" => %{}}}
+    assert toml == expected
+  end
 
   test "table-whitespace-key" do
     toml = File.read!("test/valid/table-whitespace-key.toml") |> Jerry.decode!

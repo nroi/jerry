@@ -308,7 +308,10 @@ defmodule JerryValidTest do
       "foo" => %{
         "one" => 1,
         "bar" => %{
-          "two" => 2, "baz" => %{"three" => 3}
+          "two" => 2,
+          "baz" => %{"three" => 3},
+          "boo" => %{"four" => 4},
+          "bam" => %{"five" => 5},
         },
         "bbb" => %{},
       }

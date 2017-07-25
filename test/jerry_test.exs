@@ -303,11 +303,11 @@ defmodule JerryTest do
     expected = [
       {:toml_array_of_tables, ["fruit"], [
         {:toml_array_of_tables_item, ["fruit"], [
-          {:key, "name", {:toml_basic_string, ~s("apple")}},
-          {:toml_table_name, ["physical"], [
-            {:key, "color", {:toml_basic_string, ~s("red")}},
+          {:toml_table, ["physical"], [
             {:key, "shape", {:toml_basic_string, ~s("round")}},
+            {:key, "color", {:toml_basic_string, ~s("red")}},
           ]},
+          {:key, "name", {:toml_basic_string, ~s("apple")}},
         ]},
       ]}
     ]

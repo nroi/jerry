@@ -43,23 +43,23 @@ defmodule Jerry do
   # Hence, all arrays-of-tables are "compressed" such that we can subsequently generate the
   # final map by looking at each item of the list, one by one.
   def compress_intermediate(intermediate_repr) do
-    {array_items, other} = Enum.split_with(intermediate_repr, fn
+    {tables_and_array_items, other} = Enum.split_with(intermediate_repr, fn
+      {:toml_array_of_tables_item, _, _} -> true
+      {:toml_table, _, _} -> true
+      _ -> false
+    end)
+    tables_and_array_items = compress_tables(tables_and_array_items)
+    {array_items, tables} = Enum.split_with(tables_and_array_items, fn
       {:toml_array_of_tables_item, _, _} -> true
       _ -> false
     end)
-    {tables, other} = Enum.split_with(other, fn
-      {:toml_table, _name, _kv_pairs} -> true
-      _ -> false
-    end)
-    tables = compress_tables(tables)
-    # array_items = compress_arrays_of_tables(array_items)
-    compressed = Enum.group_by(array_items, fn {:toml_array_of_tables_item, name, _} ->
+    compressed_array_items = Enum.group_by(array_items, fn {:toml_array_of_tables_item, name, _} ->
       name
     end)
-    tmp = Enum.map(compressed, fn {name, arrays} ->
+    arrays_of_tables = Enum.map(compressed_array_items, fn {name, arrays} ->
       {:toml_array_of_tables, name, arrays}
     end)
-    tmp ++ tables ++ other
+    arrays_of_tables ++ tables ++ other
   end
 
   # Given two lists l1, l2, where l1 is a prefix of l2. Return the rest of l2, i.e., the part that
@@ -86,7 +86,7 @@ defmodule Jerry do
     # The default TOML table with an empty list as kv_pairs should be used if and only if a table
     # such as a.b.c is referred to in the toml file, but no table a.b was declared.
     Enum.find(intermediate_repr, default, fn
-      {:toml_table, n1, _kv_pairs} ->
+      {decl, n1, _kv_pairs} when decl == :toml_table or decl == :toml_array_of_tables_item ->
         case suffix_after_prefix(n1, tname) do
           [_name] -> true
           _ -> false
@@ -98,7 +98,7 @@ defmodule Jerry do
     # TODO performance: we sort the tables multiple times, when in fact we only need fast access to
     # the element with the highest nesting level. Perhaps we should use Erlang's :gb_trees module
     # instead of continuously sorting a list.
-    Enum.sort(tables, fn {:toml_table, n1, _}, {:toml_table, n2, _} ->
+    Enum.sort(tables, fn {_, n1, _}, {_, n2, _} ->
       length(n1) >= length(n2)
     end)
   end
@@ -135,15 +135,16 @@ defmodule Jerry do
   # Input is sorted by the nesting level of the table's name, in descending order:
   # If the name is a singleton list, we are done.
   defp compress_tables_rec([]), do: []
-  defp compress_tables_rec(tables = [{:toml_table, [_name], _kv_pairs} | _]), do: tables
+  defp compress_tables_rec(tables = [{:toml_array_of_tables_item, [_], _} | _]), do: tables
+  defp compress_tables_rec(tables = [{:toml_table, [_], _} | _]), do: tables
   defp compress_tables_rec([{:toml_table, tname, tkv_pairs} | rest]) when is_list(tname) do
     case immediate_predecessor(tname, rest) do
-      {:toml_table, name, kv_pairs} ->
+      {decl, name, kv_pairs} when decl == :toml_table or decl == :toml_array_of_tables_item ->
         rest2 = Enum.filter(rest, fn
-          {:toml_table, n, _} -> n != name
+          {^decl, n, _} -> n != name
         end)
         inner = {:toml_table, [:lists.last(tname)], tkv_pairs}
-        rest_tables = [{:toml_table, name, [inner | kv_pairs]} | rest2] |> sort_toml_tables
+        rest_tables = [{decl, name, [inner | kv_pairs]} | rest2] |> sort_toml_tables
         compress_tables_rec(rest_tables)
     end
   end
@@ -151,11 +152,9 @@ defmodule Jerry do
   # TODO code duplication?
   defp compress_arrays_of_tables_rec([]), do: []
   defp compress_arrays_of_tables_rec(tables = [{:toml_array_of_tables, [_name], _kv_pairs} | _]) do
-    IO.puts "done."
     tables
   end
   defp compress_arrays_of_tables_rec([{:toml_array_of_tables, tname, tkv_pairs} | rest]) when is_list(tname) do
-    IO.puts "find immediate pred of #{inspect tname}"
     case immediate_predecessor(tname, rest) do
       {:toml_table, name, kv_pairs} ->
         rest2 = Enum.filter(rest, fn

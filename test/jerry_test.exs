@@ -291,6 +291,15 @@ defmodule JerryTest do
               color = "red"
               shape = "round"
     )
+    intermediate_expected = [
+      {:toml_array_of_tables, ["fruit"], [
+        {:key, "name", {:toml_basic_string, ~s("apple")}},
+      ]},
+      {:toml_table, ["fruit", "physical"], [
+        {:key, "shape", {:toml_basic_string, ~s("round")}},
+        {:key, "color", {:toml_basic_string, ~s("red")}},
+      ]}
+    ]
     expected = [
       {:toml_arrays_of_tables, ["fruit"], [
         {:key, "name", {:toml_basic_string, "apple"}},
@@ -300,6 +309,7 @@ defmodule JerryTest do
         ]}
       ]}
     ]
+    assert s |> Jerry.intermediate_repr == intermediate_expected
     assert s |> Jerry.intermediate_repr |> Jerry.compress_intermediate == expected
   end
 end

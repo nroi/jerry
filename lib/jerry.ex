@@ -28,7 +28,7 @@ defmodule Jerry do
   def key, do: @key
 
   def intermediate_repr(s, kv_pairs \\ []) do
-    # Append \n just to make things simpler, where we can assume lines always end with \n.
+    # Append \n just to make things simpler, so we can assume lines always end with \n.
     case key_value_pairs(normalize(s), kv_pairs, false) do
       {:eof, pairs} -> Enum.reverse(pairs)
       {:continue, {rest, pairs}} ->

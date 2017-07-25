@@ -38,13 +38,13 @@ defmodule Jerry do
 
 
   # the intermediate representation contains tokens in the order they have occured in the original
-  # string. This also means that for array of tables, different key-value-pairs belonging to the
+  # string. This also means that for arrays of tables, different key-value-pairs belonging to the
   # same array-of-table are spread at different positions in the list.
   # Hence, all arrays-of-tables are "compressed" such that we can subsequently generate the
   # final map by looking at each item of the list, one by one.
   def compress_intermediate(intermediate_repr) do
-    {arrays_of_tables, other} = Enum.split_with(intermediate_repr, fn
-      {:toml_array_of_tables, _, _} -> true
+    {array_items, other} = Enum.split_with(intermediate_repr, fn
+      {:toml_array_of_tables_item, _, _} -> true
       _ -> false
     end)
     {tables, other} = Enum.split_with(other, fn
@@ -52,12 +52,14 @@ defmodule Jerry do
       _ -> false
     end)
     tables = compress_tables(tables)
-    compressed = Enum.group_by(arrays_of_tables, fn {:toml_array_of_tables, name, _} ->
-      unquote_array_of_tables(name)
+    # array_items = compress_arrays_of_tables(array_items)
+    compressed = Enum.group_by(array_items, fn {:toml_array_of_tables_item, name, _} ->
+      name
     end)
-    Enum.map(compressed, fn {name, arrays} ->
-      {:toml_arrays_of_tables, name, arrays}
-    end) ++ tables ++ other
+    tmp = Enum.map(compressed, fn {name, arrays} ->
+      {:toml_array_of_tables, name, arrays}
+    end)
+    tmp ++ tables ++ other
   end
 
   # Given two lists l1, l2, where l1 is a prefix of l2. Return the rest of l2, i.e., the part that
@@ -100,6 +102,18 @@ defmodule Jerry do
       length(n1) >= length(n2)
     end)
   end
+  defp sort_toml_array_of_tables(tables) do
+    Enum.sort(tables, fn
+      {:toml_array_of_table, n1, _}, {:toml_array_of_table, n2, _} ->
+        length(n1) >= length(n2)
+      {:toml_array_of_table, n1, _}, {:toml_table, n2, _} ->
+        length(n1) >= length(n2)
+      {:toml_table, n1, _}, {:toml_array_of_table, n2, _} ->
+        length(n1) >= length(n2)
+      {:toml_table, n1, _}, {:toml_table, n2, _} ->
+        length(n1) >= length(n2)
+    end)
+  end
 
   # Given a flat list of {:toml_table, _, _}, return the nested list where each table with a name
   # containing a dot is put inside the appropriate table. For example, a table named "foo.bar" is
@@ -109,6 +123,13 @@ defmodule Jerry do
     tables
     |> sort_toml_tables
     |> compress_tables_rec
+  end
+
+  def compress_arrays_of_tables(array_items) do
+    # TODO
+    array_items
+    |> sort_toml_array_of_tables
+    |> compress_arrays_of_tables_rec
   end
 
   # Input is sorted by the nesting level of the table's name, in descending order:
@@ -126,6 +147,26 @@ defmodule Jerry do
         compress_tables_rec(rest_tables)
     end
   end
+
+  # TODO code duplication?
+  defp compress_arrays_of_tables_rec([]), do: []
+  defp compress_arrays_of_tables_rec(tables = [{:toml_array_of_tables, [_name], _kv_pairs} | _]) do
+    IO.puts "done."
+    tables
+  end
+  defp compress_arrays_of_tables_rec([{:toml_array_of_tables, tname, tkv_pairs} | rest]) when is_list(tname) do
+    IO.puts "find immediate pred of #{inspect tname}"
+    case immediate_predecessor(tname, rest) do
+      {:toml_table, name, kv_pairs} ->
+        rest2 = Enum.filter(rest, fn
+          {:toml_table, n, _} -> n != name
+        end)
+        inner = {:toml_array_of_tables, [:lists.last(tname)], tkv_pairs}
+        rest_tables = [{:toml_array_of_tables, name, [inner | kv_pairs]} | rest2] |> sort_toml_array_of_tables
+        compress_arrays_of_tables(rest_tables)
+    end
+  end
+
 
   def decode!(s) do
     s |> intermediate_repr |> compress_intermediate |> kv_pairs_to_map
@@ -251,6 +292,9 @@ defmodule Jerry do
     String.replace_suffix(rest, ~s('''), "")
   end
 
+  def table_array_name("[[" <> rest) do
+    table_name_rec("." <> remove_suffix(rest, "]]"))
+  end
   def table_name("[" <> rest) do
     table_name_rec("." <> remove_suffix(rest, "]"))
   end
@@ -382,12 +426,12 @@ defmodule Jerry do
         # TODO copy-pasted from below, refactor.
         case key_value_pairs(rest, [], true) do
           {:continue, {rest, table_pairs}} ->
-            table = {:toml_array_of_tables, table, Enum.reverse(table_pairs)}
+            table = {:toml_array_of_tables_item, table_array_name(table), Enum.reverse(table_pairs)}
             {:continue, {rest, [table | pairs]}}
           {:parse_array_of_tables, {_table, _rest}} ->
             raise "bang"
           {:eof, table_pairs} ->
-            table = {:toml_array_of_tables, table, Enum.reverse(table_pairs)}
+            table = {:toml_array_of_tables_item, table_array_name(table), Enum.reverse(table_pairs)}
             {:eof, [table | pairs]}
         end
       {:parse_table, {table, rest}} when inside_table ->

@@ -242,12 +242,12 @@ defmodule JerryTest do
            sku = 284758393
            color = "gray")
     expected = [
-      {:toml_array_of_tables, ~s([[products]]), [
+      {:toml_array_of_tables_item, ["products"], [
         {:key, ~s(name), {:toml_basic_string, ~s("Hammer")}},
         {:key, ~s(sku), {:toml_integer, ~s(738594937)}}
       ]},
-      {:toml_array_of_tables, ~s([[products]]), []},
-      {:toml_array_of_tables, ~s([[products]]), [
+      {:toml_array_of_tables_item, ["products"], []},
+      {:toml_array_of_tables_item, ["products"], [
         {:key, ~s(name), {:toml_basic_string, ~s("Nail")}},
         {:key, ~s(sku), {:toml_integer, ~s(284758393)}},
         {:key, ~s(color), {:toml_basic_string, ~s("gray")}}
@@ -292,7 +292,7 @@ defmodule JerryTest do
               shape = "round"
     )
     intermediate_expected = [
-      {:toml_array_of_tables, ["fruit"], [
+      {:toml_array_of_tables_item, ["fruit"], [
         {:key, "name", {:toml_basic_string, ~s("apple")}},
       ]},
       {:toml_table, ["fruit", "physical"], [
@@ -301,12 +301,14 @@ defmodule JerryTest do
       ]}
     ]
     expected = [
-      {:toml_arrays_of_tables, ["fruit"], [
-        {:key, "name", {:toml_basic_string, "apple"}},
-        {:toml_table, ["physical"], [
-          {:key, "color", {:toml_basic_string, "red"}},
-          {:key, "shape", {:toml_basic_string, "round"}},
-        ]}
+      {:toml_array_of_tables, ["fruit"], [
+        {:toml_array_of_tables_item, ["fruit"], [
+          {:key, "name", {:toml_basic_string, ~s("apple")}},
+          {:toml_table_name, ["physical"], [
+            {:key, "color", {:toml_basic_string, ~s("red")}},
+            {:key, "shape", {:toml_basic_string, ~s("round")}},
+          ]},
+        ]},
       ]}
     ]
     assert s |> Jerry.intermediate_repr == intermediate_expected

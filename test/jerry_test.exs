@@ -283,4 +283,23 @@ defmodule JerryTest do
     ]
     assert Jerry.compress_tables(repr) == expected
   end
+
+  test "arrays of tables may contain tables" do
+    s = ~S([[fruit]]
+            name = "apple"
+            [fruit.physical]
+              color = "red"
+              shape = "round"
+    )
+    expected = [
+      {:toml_arrays_of_tables, ["fruit"], [
+        {:key, "name", {:toml_basic_string, "apple"}},
+        {:toml_table, ["physical"], [
+          {:key, "color", {:toml_basic_string, "red"}},
+          {:key, "shape", {:toml_basic_string, "round"}},
+        ]}
+      ]}
+    ]
+    assert s |> Jerry.intermediate_repr |> Jerry.compress_intermediate == expected
+  end
 end

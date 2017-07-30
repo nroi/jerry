@@ -106,19 +106,6 @@ defmodule Jerry do
       length(n1) >= length(n2)
     end)
   end
-  defp sort_toml_array_of_tables(tables) do
-    Enum.sort(tables, fn
-      {:toml_array_of_table, n1, _}, {:toml_array_of_table, n2, _} ->
-        length(n1) >= length(n2)
-      {:toml_array_of_table, n1, _}, {:toml_table, n2, _} ->
-        length(n1) >= length(n2)
-      {:toml_table, n1, _}, {:toml_array_of_table, n2, _} ->
-        length(n1) >= length(n2)
-      {:toml_table, n1, _}, {:toml_table, n2, _} ->
-        length(n1) >= length(n2)
-    end)
-  end
-
   # Given a flat list of {:toml_table, _, _}, return the nested list where each table with a name
   # containing a dot is put inside the appropriate table. For example, a table named "foo.bar" is
   # put inside the table named foo. Also, tables are renamed such that they contain the last part
@@ -129,47 +116,22 @@ defmodule Jerry do
     |> compress_tables_rec
   end
 
-  def compress_arrays_of_tables(array_items) do
-    # TODO
-    array_items
-    |> sort_toml_array_of_tables
-    |> compress_arrays_of_tables_rec
-  end
-
   # Input is sorted by the nesting level of the table's name, in descending order:
   # If the name is a singleton list, we are done.
   defp compress_tables_rec([]), do: []
   defp compress_tables_rec(tables = [{:toml_array_of_tables_item, [_], _} | _]), do: tables
   defp compress_tables_rec(tables = [{:toml_table, [_], _} | _]), do: tables
-  defp compress_tables_rec([{:toml_table, tname, tkv_pairs} | rest]) when is_list(tname) do
+  defp compress_tables_rec([{tdecl, tname, tkv_pairs} | rest])
+    when is_list(tname) and (tdecl == :toml_table or tdecl == :toml_array_of_tables_item) do
     case immediate_predecessor(tname, rest) do
-      {decl, name, kv_pairs} when decl == :toml_table or decl == :toml_array_of_tables_item ->
-        rest2 = Enum.filter(rest, fn
-          {^decl, n, _} -> n != name
-        end)
-        inner = {:toml_table, [:lists.last(tname)], tkv_pairs}
+      {m = {decl, name, kv_pairs}, rest2} when decl == :toml_table or decl == :toml_array_of_tables_item ->
+        IO.puts "Nest #{inspect tname} inside #{inspect name} (#{inspect m})"
+        IO.puts "rest: #{inspect rest2}"
+        inner = {tdecl, [:lists.last(tname)], tkv_pairs}
         rest_tables = [{decl, name, [inner | kv_pairs]} | rest2] |> sort_toml_tables
         compress_tables_rec(rest_tables)
     end
   end
-
-  # TODO code duplication?
-  defp compress_arrays_of_tables_rec([]), do: []
-  defp compress_arrays_of_tables_rec(tables = [{:toml_array_of_tables, [_name], _kv_pairs} | _]) do
-    tables
-  end
-  defp compress_arrays_of_tables_rec([{:toml_array_of_tables, tname, tkv_pairs} | rest]) when is_list(tname) do
-    case immediate_predecessor(tname, rest) do
-      {:toml_table, name, kv_pairs} ->
-        rest2 = Enum.filter(rest, fn
-          {:toml_table, n, _} -> n != name
-        end)
-        inner = {:toml_array_of_tables, [:lists.last(tname)], tkv_pairs}
-        rest_tables = [{:toml_array_of_tables, name, [inner | kv_pairs]} | rest2] |> sort_toml_array_of_tables
-        compress_arrays_of_tables(rest_tables)
-    end
-  end
-
 
   def decode!(s) do
     s |> intermediate_repr |> compress_intermediate |> kv_pairs_to_map

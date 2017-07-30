@@ -81,7 +81,8 @@ defmodule Jerry do
     :no_prefix
   end
 
-  # Given tname = [foo.bar.soo], find the table with name "foo.bar".
+  # Given tname = [foo.bar.soo], returns a tuple {table, rest}, where
+  # table is the table with name "foo.bar", rest is everything else.
   def immediate_predecessor(tname, intermediate_repr) when is_list(tname) do
     default = case tname do
       [_ | _] -> {:toml_table, :lists.droplast(tname), []}
@@ -89,13 +90,20 @@ defmodule Jerry do
     end
     # The default TOML table with an empty list as kv_pairs should be used if and only if a table
     # such as a.b.c is referred to in the toml file, but no table a.b was declared.
-    Enum.find(intermediate_repr, default, fn
+    tmp = Enum.split_with(intermediate_repr, fn
       {decl, n1, _kv_pairs} when decl == :toml_table or decl == :toml_array_of_tables_item ->
         case suffix_after_prefix(n1, tname) do
           [_name] -> true
           _ -> false
         end
     end)
+    case tmp do
+      {[], rest} -> {default, rest}
+      {[x], rest} -> {x, rest}
+      # TODO caution! We blindly assume that the first table (x) is the predecessor.
+      # Write a failing test case if possible, then fix this part.
+      {[x | xs], rest} -> {x, xs ++ rest}
+    end
   end
 
   defp sort_toml_tables(tables) do

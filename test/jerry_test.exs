@@ -411,4 +411,42 @@ defmodule JerryTest do
     assert(compressed == compressed_expected)
   end
 
+  test "nested arrays_of_tables are nested inside the correct table" do
+    s = ~S([[albums]]
+             [[albums.songs]]
+             name = 1
+           [[albums]]
+             [[albums.songs]]
+             name = 2
+    )
+    compressed = s |> Jerry.intermediate_repr |> Jerry.compress_intermediate
+    compressed_expected = [
+      {:toml_array_of_tables, ["albums"], [
+        {:toml_array_of_tables_item, ["albums"], [
+          {:toml_array_of_tables, ["songs"], [
+            {:toml_array_of_tables_item, ["songs"], [
+              {:key, "name", {:toml_integer, "1"}},
+            ]},
+          ]},
+        ]},
+        {:toml_array_of_tables_item, ["albums"], [
+          {:toml_array_of_tables, ["songs"], [
+            {:toml_array_of_tables_item, ["songs"], [
+              {:key, "name", {:toml_integer, "2"}},
+            ]},
+          ]},
+        ]},
+      ]}
+    ]
+    result = Jerry.decode!(s)
+    result_expected = %{
+      "albums" => [
+        %{"songs" => [%{"name" => 1}]},
+        %{"songs" => [%{"name" => 2}]},
+      ]
+    }
+    assert(compressed == compressed_expected)
+    assert(result == result_expected)
+  end
+
 end

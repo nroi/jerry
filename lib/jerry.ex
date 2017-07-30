@@ -5,7 +5,7 @@ defmodule Jerry do
 
   require Jerry.Utils.Macros
   import Jerry.Utils.Macros
-  import Jerry.StringUtils, only: [remove_suffix: 2]
+  import Jerry.Utils.StringUtils, only: [remove_suffix: 2]
 
   # TODO Check out the abnf file for the TOML grammar, then introduce more regexes.
   @wschar source ~r/ |\t/

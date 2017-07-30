@@ -225,9 +225,9 @@ defmodule Jerry do
     kv_pairs_to_map(table_pairs)
   end
 
-  def intermediate2val({:toml_arrays_of_tables, name, arrays}) do
-    {name, Enum.map(arrays, fn
-      {:toml_array_of_tables, _name, kv_pairs} ->
+  def intermediate2val({:toml_array_of_tables, [name], tables}) do
+    {name, Enum.map(tables, fn
+      {:toml_array_of_tables_item, [^name], kv_pairs} ->
         kv_pairs_to_map(kv_pairs)
     end)}
   end

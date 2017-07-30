@@ -57,6 +57,10 @@ defmodule Jerry do
       name
     end)
     arrays_of_tables = Enum.map(compressed_array_items, fn {name, arrays} ->
+      arrays = Enum.map(arrays, fn
+        {:toml_array_of_tables_item, nname, kv_pairs} ->
+          {:toml_array_of_tables_item, nname, compress_intermediate(kv_pairs)}
+      end)
       {:toml_array_of_tables, name, arrays}
     end)
     arrays_of_tables ++ tables ++ other

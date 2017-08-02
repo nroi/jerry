@@ -1,9 +1,9 @@
 defmodule Jerry.Utils.ListUtils do
 
-  def nest_children([]), do: []
-  def nest_children(entries = [x|xs]) do
-    {children, unrelated} = split_children(x, xs)
-    [children | nest_children(unrelated)]
+  def nest_children([], _pred), do: []
+  def nest_children(entries = [x|xs], pred) do
+    {children, unrelated} = split_children(x, xs, pred)
+    [children | nest_children(unrelated, pred)]
   end
 
   # Given a parent, a list of entries and a predicate which evaluates two entries to true iff the
@@ -14,10 +14,9 @@ defmodule Jerry.Utils.ListUtils do
   # successor_def is a list of tuples, each tuple of type f.
   # The following precondition must be fulfilled: each child must occur after its parent in `entries`.
   # TODO use type annotations, otherwise this function is difficult to grok.
-  def split_children(parent, entries) do
+  def split_children(parent, entries, pred) do
     # Each entry must be unique, otherwise the MapSet will not work as supposed to.
     unique_entries = Enum.with_index(entries)
-    pred = &Jerry.immediate_predecessor?/2
     modified_pred = fn {entry1, _idx1}, {entry2, _idx2} ->
       pred.(entry1, entry2)
     end

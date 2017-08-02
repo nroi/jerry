@@ -4,7 +4,8 @@ defmodule ListUtilsTest do
 
   test "split_children" do
     s = [["foo"], ["foo", "bar"], ["foo", "baz"], ["foo", "bar", "soo"], ["bang"]]
-    result = nest_children(s)
+    pred = &Jerry.immediate_predecessor?/2
+    result = nest_children(s, pred)
     expected = [
       {["foo"], [
         {["foo", "bar"], [

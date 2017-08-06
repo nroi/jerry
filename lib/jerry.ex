@@ -6,6 +6,7 @@ defmodule Jerry do
   require Jerry.Utils.Macros
   import Jerry.Utils.Macros
   import Jerry.Utils.StringUtils, only: [remove_suffix: 2]
+  import Jerry.Utils.ListUtils, only: [nest_children: 2]
 
   # TODO Check out the abnf file for the TOML grammar, then introduce more regexes.
   @wschar source ~r/ |\t/
@@ -49,6 +50,7 @@ defmodule Jerry do
       _ -> false
     end)
     tables_and_array_items = compress_tables(tables_and_array_items)
+    IO.puts "tables and array items: #{inspect tables_and_array_items}"
     {array_items, tables} = Enum.split_with(tables_and_array_items, fn
       {:toml_array_of_tables_item, _, _} -> true
       _ -> false
@@ -81,6 +83,21 @@ defmodule Jerry do
     :no_prefix
   end
 
+  def immediate_predecessor?({:toml_table, pname, _},
+                             {:toml_table, cname, _}) do
+      immediate_predecessor?(pname, cname)
+  end
+  def immediate_predecessor?({:toml_array_of_tables_item, pname, _},
+                             {:toml_array_of_tables_item, cname, _}) do
+      immediate_predecessor?(pname, cname)
+  end
+  def immediate_predecessor?(pname, cname) when is_list(pname) and is_list(cname) do
+    case suffix_after_prefix(pname, cname) do
+      [_name] -> true
+      _ -> false
+    end
+  end
+
   # Given tname = [foo.bar.soo], returns a tuple {table, rest}, where
   # table is the table with name "foo.bar", rest is everything else.
   def immediate_predecessor(tname, intermediate_repr) when is_list(tname) do
@@ -92,10 +109,7 @@ defmodule Jerry do
     # such as a.b.c is referred to in the toml file, but no table a.b was declared.
     tmp = Enum.split_with(intermediate_repr, fn
       {decl, n1, _kv_pairs} when decl == :toml_table or decl == :toml_array_of_tables_item ->
-        case suffix_after_prefix(n1, tname) do
-          [_name] -> true
-          _ -> false
-        end
+        immediate_predecessor?(n1, tname)
     end)
     case tmp do
       {[], rest} -> {default, rest}
@@ -106,43 +120,165 @@ defmodule Jerry do
     end
   end
 
-  defp sort_toml_tables(tables) do
-    # TODO performance: we sort the tables multiple times, when in fact we only need fast access to
-    # the element with the highest nesting level. Perhaps we should use Erlang's :gb_trees module
-    # instead of continuously sorting a list.
-    Enum.sort(tables, fn {_, n1, _}, {_, n2, _} ->
-      length(n1) >= length(n2)
+  # Given a list of entries, sort all toml tables inside it.
+  def sort_toml_tables(entries) do
+    # The entries have to be nested already (e.g. a toml table with name ["foo", "bar"] is nested
+    # inside a toml table with name ["foo"].
+    {tables, other} = Enum.split_with(entries, fn
+      {:toml_table, _, _} -> true
+      _ -> false
     end)
+    sorted = Enum.sort(tables, fn
+      {:toml_table, n1, _}, {:toml_table, n2, _} ->
+        length(n1) <= length(n2)
+    end)
+    nested_sorted = Enum.map(sorted, fn
+      {:toml_table, name, kv_pairs} -> {:toml_table, name, sort_toml_tables(kv_pairs)}
+    end)
+    nested_sorted ++ other
   end
+
+
   # Given a flat list of {:toml_table, _, _}, return the nested list where each table with a name
   # containing a dot is put inside the appropriate table. For example, a table named "foo.bar" is
   # put inside the table named foo. Also, tables are renamed such that they contain the last part
   # only (e.g. ["foo", "bar", "baz"] is renamed to ["baz"]).
   def compress_tables(tables) do
     tables
-    |> sort_toml_tables
+    # |> sort_toml_tables
     |> compress_tables_rec
   end
 
   # Input is sorted by the nesting level of the table's name, in descending order:
   # If the name is a singleton list, we are done.
-  defp compress_tables_rec([]), do: []
-  defp compress_tables_rec(tables = [{:toml_array_of_tables_item, [_], _} | _]), do: tables
-  defp compress_tables_rec(tables = [{:toml_table, [_], _} | _]), do: tables
-  defp compress_tables_rec([{tdecl, tname, tkv_pairs} | rest])
-    when is_list(tname) and (tdecl == :toml_table or tdecl == :toml_array_of_tables_item) do
-    case immediate_predecessor(tname, rest) do
-      {m = {decl, name, kv_pairs}, rest2} when decl == :toml_table or decl == :toml_array_of_tables_item ->
-        IO.puts "Nest #{inspect tname} inside #{inspect name} (#{inspect m})"
-        IO.puts "rest: #{inspect rest2}"
-        inner = {tdecl, [:lists.last(tname)], tkv_pairs}
-        rest_tables = [{decl, name, [inner | kv_pairs]} | rest2] |> sort_toml_tables
-        compress_tables_rec(rest_tables)
+  def compress_tables_rec([]), do: []
+  def compress_tables_rec(tables = [{:toml_table, tname, _tkv_pairs} | _rest]) when is_list(tname)  do
+    tables
+    |> nest_children(&immediate_predecessor?/2)
+    |> Enum.map(&nest_toml_tables/1)
+  end
+  def compress_tables_rec([f = {:toml_array_of_tables_item, tname, _tkv_pairs} | rest]) when is_list(tname) do
+    {relevant, irrelevant} = Enum.split_while(rest, fn
+      {:toml_array_of_tables_item, name, _} -> length(name) > length(tname)
+    end)
+    relevant = [f | relevant]
+    # relevant contains f as well as potential children of f.
+    nested = nest_children(relevant, &immediate_predecessor?/2)
+    IO.puts "nested: #{inspect nested}"
+    properly_nested = Enum.map(nested, fn n ->
+      nest_array_of_tables(n, nil)
+    end)
+    tmp2 = properly_nested ++ compress_tables_rec(irrelevant)
+    IO.puts "return: #{inspect tmp2}"
+    tmp2
+  end
+
+  # TODO this function is the culprit: it should nest a toml_array_of_tables_item inside a
+  # newcly created :toml_array_of_table whose name is the predecessor name.
+  # the function "nest_children" returns an abstract representation {parent, descendants}.
+  # this function turns this representation into the one required for properly representing arrays
+  # of tables, by nesting the children inside the key-value-pairs.
+  def nest_array_of_tables({child = {:toml_array_of_tables_item, name, kv_pairs}, descendants}, parent) do
+    new_children = Enum.map(descendants, fn descendant ->
+      nest_array_of_tables(descendant, child)
+    end)
+    new_name = case parent do
+      nil ->
+        IO.puts "#{inspect name} has no parent."
+        name
+      _   ->
+        # TODO it's not that simple: consider the case when [[a]] and [[a.b.c]] exists, but not
+        # [[a.b]]. We should then detect [[a]] as the parent of [[a.b.c]], and then use the child's
+        # suffix (i.e., [[b.c]]) as the name.
+        [:lists.last(name)]
+    end
+    IO.puts "new name for #{inspect child}: #{inspect new_name}"
+    {:toml_array_of_tables, new_name, new_children ++ kv_pairs}
+  end
+
+  def nest_toml_tables({{:toml_table, name, kv_pairs}, descendants}) do
+    {:toml_table, [:lists.last(name)], Enum.map(descendants, &nest_toml_tables/1) ++ kv_pairs}
+  end
+
+  def prepend_implicit(explicit) do
+    Enum.reduce(explicit, [], fn
+      t = {:toml_table, _name, _}, acc ->
+        acc ++ predecessors_to_insert(t, explicit, []) ++ [t]
+      other, acc ->
+        acc ++ [other]
+    end)
+  end
+
+  # returns all implicit predecessors of this entry (i.e., predecessors not yet contained in explicit)
+  def predecessors_to_insert(_entry = {:toml_table, [_name], _}, _explicit, acc), do: acc
+  def predecessors_to_insert(_entry = {:toml_table, name, _}, explicit, acc) do
+    predecessor_name = :lists.droplast(name)
+    has_predecessor = Enum.any?(explicit, fn
+      {:toml_table, ^predecessor_name, _} -> true
+      _ -> false
+    end)
+    case has_predecessor do
+      true ->
+        acc
+      false ->
+        predecessor = {:toml_table, predecessor_name, []}
+        predecessors_to_insert(predecessor, explicit, [predecessor | acc])
     end
   end
 
+  # TODO the following three clauses are copy-pasted.
+  # def prepend_implicit_arrays(explicit) do
+  #   Enum.reduce(explicit, [], fn
+  #     t = {:toml_array_of_tables_item, _name, _}, acc ->
+  #       acc ++ predecessors_to_insert_array(t, explicit, []) ++ [t]
+  #     other, acc ->
+  #       acc ++ [other]
+  #   end)
+  # end
+
+  # # returns all implicit predecessors of this entry (i.e., predecessors not yet contained in explicit)
+  # def predecessors_to_insert_array(_entry = {:toml_array_of_tables_item, [_name], _}, _explicit, acc), do: acc
+  # def predecessors_to_insert_array(_entry = {:toml_array_of_tables_item, name, _}, explicit, acc) do
+  #   predecessor_name = :lists.droplast(name)
+  #   has_predecessor = Enum.any?(explicit, fn
+  #     {:toml_array_of_tables_item, ^predecessor_name, _} -> true
+  #     _ -> false
+  #   end)
+  #   case has_predecessor do
+  #     true ->
+  #       acc
+  #     false ->
+  #       predecessor = {:toml_array_of_tables_item, predecessor_name, []}
+  #       predecessors_to_insert_array(predecessor, explicit, [predecessor | acc])
+  #   end
+  # end
+
+  def implicit_tables_rec([], all), do: all
+  def implicit_tables_rec([{:toml_table, name = [_|[_|_]], _} | rest], all) do
+    predecessor_name = :lists.droplast(name)
+    has_predecessor = Enum.any?(all, fn
+      {:toml_table, ^predecessor_name, _} -> true
+      _ -> false
+    end)
+    case has_predecessor do
+      true -> implicit_tables_rec(rest, all)
+      false ->
+        implicit_predecessor = {:toml_table, predecessor_name, []}
+        implicit_tables_rec([implicit_predecessor | rest], [implicit_predecessor | all])
+    end
+  end
+  def implicit_tables_rec([_|rest], all) do
+    implicit_tables_rec(rest, all)
+  end
+
   def decode!(s) do
-    s |> intermediate_repr |> compress_intermediate |> kv_pairs_to_map
+    s
+    |> intermediate_repr
+    |> prepend_implicit
+    |> sort_toml_tables # TODO do we still need that?
+    |> compress_intermediate
+    |> Enum.map(&intermediate2val/1)
+    |> merge_arrays_of_tables
   end
 
   def concat(r1, r2) do
@@ -221,23 +357,25 @@ defmodule Jerry do
 
   def intermediate2val({:toml_table, [name], table_pairs}) do
     kv_pairs = Enum.map(table_pairs, fn
-      {:key, name, value} -> {name, intermediate2val(value)}
       {:toml_table, [name], kv_pairs} ->
         {name, kv_pairs_to_map(kv_pairs)}
+      m = {:key, _, _} -> intermediate2val(m)
     end)
     kv_map = Map.new(kv_pairs)
     {unquote_string(name), kv_map}
   end
 
-  def intermediate2val({:toml_inline_table, table_pairs}) do
-    kv_pairs_to_map(table_pairs)
+  def intermediate2val({:toml_array_of_tables, [name], items}) when is_list(items) do
+    kv_map = Enum.map(items, &intermediate2val/1)
+    {{:toml_array_of_tables!, unquote_string(name)}, kv_map}
+  end
+  def intermediate2val({:toml_array_of_tables, [x|xs], items}) when is_list(items) do
+    # Create implicit tables without any entries.
+    {{:toml_array_of_tables!, unquote_string(x)}, intermediate2val({:toml_array_of_tables, xs, items})}
   end
 
-  def intermediate2val({:toml_array_of_tables, [name], tables}) do
-    {name, Enum.map(tables, fn
-      {:toml_array_of_tables_item, [^name], kv_pairs} ->
-        kv_pairs_to_map(kv_pairs)
-    end)}
+  def intermediate2val({:toml_inline_table, table_pairs}) do
+    kv_pairs_to_map(table_pairs)
   end
 
   def intermediate2val({:key, name, value}) do
@@ -337,7 +475,28 @@ defmodule Jerry do
   # TODO introduce a type such as kv_pairs :: [kv_pair], kv_pair == {:key, String.t, value}
   def kv_pairs_to_map(kv_pairs) do
     pairs = Enum.map(kv_pairs, &intermediate2val/1)
-    Map.new(pairs)
+    merge_arrays_of_tables(pairs)
+  end
+
+  def merge_arrays_of_tables(arrays_of_tables) do
+    # TODO idea: {:toml_array_of_tables get special treatment in the intermediate2val function:
+    # they are parsed into the tuple {{:toml_array_of_tables!, key}, value} instead of just {key,
+    # value}. Then, we use this function instead of kv_pairs_to_map to create the resulting map.
+    # pairs = Enum.map(arrays_of_tables, &intermediate2val/1)
+    # IO.inspect pairs
+    Enum.reduce(arrays_of_tables, %{}, fn
+      ({{:toml_array_of_tables!, key}, kv_pairs}, acc) when is_list(kv_pairs) ->
+        prev = Map.get(acc, key, [])
+        IO.puts "recursive call from: #{inspect key}"
+        Map.put(acc, key, prev ++ [merge_arrays_of_tables(kv_pairs)])
+      ({m = {:toml_array_of_tables!, key}, entry}, acc) when is_tuple(entry) ->
+        IO.puts "enter #{inspect m} with entry #{inspect entry}"
+        map = merge_arrays_of_tables([entry])
+        Map.put(acc, key, map)
+        # %{key => entry}
+      ({key, value}, acc) ->
+        Map.put(acc, key, value)
+    end)
   end
 
   def normalize(s) do

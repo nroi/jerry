@@ -1,6 +1,6 @@
 defmodule Jerry do
   @moduledoc """
-  Documentation for Jerry.
+  Jerry, a TOML parser.
   """
 
   require Jerry.Utils.Macros
@@ -50,7 +50,6 @@ defmodule Jerry do
       _ -> false
     end)
     tables_and_array_items = compress_tables(tables_and_array_items)
-    IO.puts "tables and array items: #{inspect tables_and_array_items}"
     {array_items, tables} = Enum.split_with(tables_and_array_items, fn
       {:toml_array_of_tables_item, _, _} -> true
       _ -> false
@@ -164,13 +163,10 @@ defmodule Jerry do
     relevant = [f | relevant]
     # relevant contains f as well as potential children of f.
     nested = nest_children(relevant, &immediate_predecessor?/2)
-    IO.puts "nested: #{inspect nested}"
     properly_nested = Enum.map(nested, fn n ->
       nest_array_of_tables(n, nil)
     end)
-    tmp2 = properly_nested ++ compress_tables_rec(irrelevant)
-    IO.puts "return: #{inspect tmp2}"
-    tmp2
+    properly_nested ++ compress_tables_rec(irrelevant)
   end
 
   # TODO this function is the culprit: it should nest a toml_array_of_tables_item inside a
@@ -184,7 +180,6 @@ defmodule Jerry do
     end)
     new_name = case parent do
       nil ->
-        IO.puts "#{inspect name} has no parent."
         name
       _   ->
         # TODO it's not that simple: consider the case when [[a]] and [[a.b.c]] exists, but not
@@ -192,7 +187,6 @@ defmodule Jerry do
         # suffix (i.e., [[b.c]]) as the name.
         [:lists.last(name)]
     end
-    IO.puts "new name for #{inspect child}: #{inspect new_name}"
     {:toml_array_of_tables, new_name, new_children ++ kv_pairs}
   end
 
@@ -479,21 +473,13 @@ defmodule Jerry do
   end
 
   def merge_arrays_of_tables(arrays_of_tables) do
-    # TODO idea: {:toml_array_of_tables get special treatment in the intermediate2val function:
-    # they are parsed into the tuple {{:toml_array_of_tables!, key}, value} instead of just {key,
-    # value}. Then, we use this function instead of kv_pairs_to_map to create the resulting map.
-    # pairs = Enum.map(arrays_of_tables, &intermediate2val/1)
-    # IO.inspect pairs
     Enum.reduce(arrays_of_tables, %{}, fn
       ({{:toml_array_of_tables!, key}, kv_pairs}, acc) when is_list(kv_pairs) ->
         prev = Map.get(acc, key, [])
-        IO.puts "recursive call from: #{inspect key}"
         Map.put(acc, key, prev ++ [merge_arrays_of_tables(kv_pairs)])
-      ({m = {:toml_array_of_tables!, key}, entry}, acc) when is_tuple(entry) ->
-        IO.puts "enter #{inspect m} with entry #{inspect entry}"
+      ({{:toml_array_of_tables!, key}, entry}, acc) when is_tuple(entry) ->
         map = merge_arrays_of_tables([entry])
         Map.put(acc, key, map)
-        # %{key => entry}
       ({key, value}, acc) ->
         Map.put(acc, key, value)
     end)

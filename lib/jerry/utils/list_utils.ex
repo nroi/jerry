@@ -1,7 +1,7 @@
 defmodule Jerry.Utils.ListUtils do
 
   def nest_children([], _pred), do: []
-  def nest_children(entries = [x|xs], pred) do
+  def nest_children([x|xs], pred) do
     {children, unrelated} = split_children(x, xs, pred)
     [children | nest_children(unrelated, pred)]
   end
@@ -23,7 +23,7 @@ defmodule Jerry.Utils.ListUtils do
     {{{^parent, -1}, children}, used} = successors({parent, -1}, unique_entries, modified_pred, MapSet.new)
     rest = unique_entries
            |> Enum.filter(&(!MapSet.member?(used, &1)))
-           |> Enum.map(fn {entry, idx} -> entry end)
+           |> Enum.map(fn {entry, _idx} -> entry end)
     {{parent, Enum.map(children, &without_indices/1)}, rest}
   end
 
@@ -31,8 +31,8 @@ defmodule Jerry.Utils.ListUtils do
     {x, Enum.map(descendants, &without_indices/1)}
   end
 
-  def successors(parent, [], pred, m = %MapSet{}), do: {{parent, []}, m}
-  def successors(parent, entries = [x|xs], pred, m = %MapSet{}) do
+  def successors(parent, [], _pred, m = %MapSet{}), do: {{parent, []}, m}
+  def successors(parent, entries = [_|xs], pred, m = %MapSet{}) do
     immediate_succs = Enum.filter(entries, fn entry ->
       pred.(parent, entry)
     end)

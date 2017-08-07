@@ -375,7 +375,7 @@ defmodule JerryValidTest do
   end
 
   test "table-array-deeply-nested" do
-    toml = File.read!("test/valid/table-array-deeply-nested.toml") |> Jerry.decode!
+    toml = File.read!("test/valid/table-array-deeply-nested-empty.toml") |> Jerry.decode!
     expected = %{
       "1" => %{"2" => %{"3" => %{"4" => %{"5" => %{"6" => %{"7" => %{"8" => %{"9" => %{"10" => [%{}]}}}}}}}}}
     }

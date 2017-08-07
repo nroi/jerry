@@ -1,0 +1,13 @@
+[[albums]]
+name = 1
+  [[albums.songs]]
+  name = 2
+  [[albums.songs]]
+  name = 3
+
+[[albums]]
+name = 4
+  [[albums.songs]]
+  name = 5
+  [[albums.songs]]
+  name = 6

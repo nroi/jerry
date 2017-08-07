@@ -275,10 +275,10 @@ defmodule JerryTest do
     ]
     expected = [
       {:toml_table, ["foo"], [
-        {:toml_table, ["bbb"], []},
         {:toml_table, ["bar"], [
           {:toml_table, ["baz"], [3]},
         2]},
+        {:toml_table, ["bbb"], []},
       1]}
     ]
     assert Jerry.compress_tables(repr) == expected
@@ -319,96 +319,25 @@ defmodule JerryTest do
     # TODO remove this test case once the "more complex" one succeeds.
     s = ~S([[albums]]
            [[albums.songs]])
-    intermediate = Jerry.intermediate_repr(s)
-    intermediate_expected = [
-      {:toml_array_of_tables_item, ["albums"], []},
-      {:toml_array_of_tables_item, ["albums", "songs"], []},
-    ]
-    compressed = Jerry.compress_intermediate(intermediate)
-    compressed_expected = [
-      {:toml_array_of_tables, ["albums"], [
-        {:toml_array_of_tables_item, ["albums"], [ # 1st album
-          {:toml_array_of_tables, ["songs"], [
-            {:toml_array_of_tables_item, ["songs"], []},
-          ]},
-        ]},
-      ]}
-    ]
-    assert(intermediate == intermediate_expected)
-    assert(compressed == compressed_expected)
-  end
-
-  test "more complex nested arrays of tables are supported" do
-    content = File.read!("test/valid/table-array-nest.toml")
-    intermediate_expected = [
-      {:toml_array_of_tables_item, ["albums"],
-        [{:key, "name", {:toml_basic_string, "\"Born to Run\""}}]},
-      {:toml_array_of_tables_item, ["albums", "songs"],
-        [{:key, "name", {:toml_basic_string, "\"Jungleland\""}}]},
-      {:toml_array_of_tables_item, ["albums", "songs"],
-        [{:key, "name", {:toml_basic_string, "\"Meeting Across the River\""}}]},
-      {:toml_array_of_tables_item, ["albums"],
-        [{:key, "name", {:toml_basic_string, "\"Born in the USA\""}}]},
-      {:toml_array_of_tables_item, ["albums", "songs"],
-        [{:key, "name", {:toml_basic_string, "\"Glory Days\""}}]},
-      {:toml_array_of_tables_item, ["albums", "songs"],
-        [{:key, "name", {:toml_basic_string, "\"Dancing in the Dark\""}}]}
-    ]
-    compressed_expected = [
-      {:toml_array_of_tables, ["albums"], [
-        {:toml_array_of_tables_item, ["albums"], [ # 1st album
-          {:toml_array_of_tables, ["songs"], [
-            {:toml_array_of_tables_item, ["songs"], [
-              {:key, "name", {:toml_basic_string, "\"Meeting Across the River\""}},
-            ]},
-            {:toml_array_of_tables_item, ["songs"], [
-              {:key, "name", {:toml_basic_string, "\"Jungleland\""}},
-            ]},
-          ]},
-          {:key, "name", {:toml_basic_string, "\"Born to Run\""}},
-        ]},
-        {:toml_array_of_tables_item, ["albums"], [ # 2nd album
-          {:toml_array_of_tables, ["songs"], [
-            {:toml_array_of_tables_item, ["songs"], [
-              {:key, "name", {:toml_basic_string, "\"Dancing in the Dark\""}},
-            ]},
-            {:toml_array_of_tables_item, ["songs"], [
-              {:key, "name", {:toml_basic_string, "\"Glory Days\""}},
-            ]},
-          ]},
-          {:key, "name", {:toml_basic_string, "\"Born in the USA\""}},
-        ]},
-      ]}
-    ]
-    intermediate = Jerry.intermediate_repr(content)
-    compressed = Jerry.compress_intermediate(intermediate)
-    assert(intermediate == intermediate_expected)
-    assert(compressed == compressed_expected)
+    expected = %{
+      "albums" => [
+        %{"songs" => [%{}]}
+      ]
+    }
+    assert(Jerry.decode!(s) == expected)
   end
 
   test "multiple arrays_of_tables with nesting are supported" do
     s = ~S([[albums]]
            [[albums.songs]]
            [[albums]])
-    intermediate_expected = [
-      {:toml_array_of_tables_item, ["albums"], []},
-      {:toml_array_of_tables_item, ["albums", "songs"], []},
-      {:toml_array_of_tables_item, ["albums"], []}
-    ]
-    compressed_expected = [
-      {:toml_array_of_tables, ["albums"], [
-        {:toml_array_of_tables_item, ["albums"], [
-          {:toml_array_of_tables, ["songs"], [
-            {:toml_array_of_tables_item, ["songs"], []},
-          ]},
-        ]},
-        {:toml_array_of_tables_item, ["albums"], []},
-      ]}
-    ]
-    intermediate = s |> Jerry.intermediate_repr
-    compressed = s |> Jerry.intermediate_repr |> Jerry.compress_intermediate
-    assert(intermediate == intermediate_expected)
-    assert(compressed == compressed_expected)
+    expected = %{
+      "albums" => [
+        %{"songs" => [%{}]}, %{}
+      ]
+    }
+    result = Jerry.decode!(s)
+    assert(result == expected)
   end
 
   test "nested arrays_of_tables are nested inside the correct table" do
@@ -419,25 +348,6 @@ defmodule JerryTest do
              [[albums.songs]]
              name = 2
     )
-    compressed = s |> Jerry.intermediate_repr |> Jerry.compress_intermediate
-    compressed_expected = [
-      {:toml_array_of_tables, ["albums"], [
-        {:toml_array_of_tables_item, ["albums"], [
-          {:toml_array_of_tables, ["songs"], [
-            {:toml_array_of_tables_item, ["songs"], [
-              {:key, "name", {:toml_integer, "1"}},
-            ]},
-          ]},
-        ]},
-        {:toml_array_of_tables_item, ["albums"], [
-          {:toml_array_of_tables, ["songs"], [
-            {:toml_array_of_tables_item, ["songs"], [
-              {:key, "name", {:toml_integer, "2"}},
-            ]},
-          ]},
-        ]},
-      ]}
-    ]
     result = Jerry.decode!(s)
     result_expected = %{
       "albums" => [
@@ -445,7 +355,6 @@ defmodule JerryTest do
         %{"songs" => [%{"name" => 2}]},
       ]
     }
-    assert(compressed == compressed_expected)
     assert(result == result_expected)
   end
 

@@ -466,4 +466,63 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "hugo-config" do
+    toml = File.read!("test/valid/hugo-config.toml") |> Jerry.decode!
+    expected = %{
+      "baseURL" => "https://gohugo.io/",
+      "blackfriday" => %{
+        "angledQuotes" => false,
+        "hrefTargetBlank" => true,
+        "latexDashes" => true,
+        "plainIDAnchors" => true},
+      "enableEmoji" => true,
+      "footnotereturnlinkcontents" => "↩",
+      "googleAnalytics" => "UA-7131036-4",
+      "mediaTypes" => %{
+        "text/netlify" => %{
+          "delimiter" => "",
+          "suffix" => ""
+        }
+      },
+      "menu" => %{
+        "docs" => [
+          %{"name" => "About Hugo", "weight" => 1},
+          %{"name" => "Getting Started", "weight" => 5},
+          %{"name" => "Themes", "url" => "/themes/", "weight" => 15},
+          %{"name" => "Content Management", "url" => "/content-management/", "weight" => 20},
+          %{"identifier" => "templates", "name" => "Templates", "url" => "/templates/", "weight" => 25},
+          %{"identifier" => "functions", "name" => "Functions", "url" => "/functions/", "weight" => 30},
+          %{"identifier" => "variables", "name" => "Variables", "url" => "/variables/", "weight" => 35},
+          %{"identifier" => "commands", "name" => "CLI", "post" => "break", "url" => "/commands/", "weight" => 40}
+        ],
+        "global" => [
+          %{"name" => "News", "weight" => 1},
+          %{"name" => "Docs", "weight" => 5},
+          %{"name" => "Themes", "weight" => 10},
+          %{"name" => "Community", "weight" => 150},
+          %{"name" => "GitHub", "weight" => 200}],
+        "quicklinks" => [
+          %{"name" => "Fundamentals", "weight" => 1}
+        ]
+      },
+      "outputFormats" => %{
+        "HEADERS" => %{"mediatype" => "text/netlify"},
+        "REDIR" => %{"baseName" => "_redirects", "mediatype" => "text/netlify"}
+      },
+      "outputs" => %{
+        "home" => ["HTML", "RSS", "REDIR", "HEADERS"],
+        "section" => ["HTML", "RSS"]
+      },
+      "paginate" => 100,
+      "params" => %{
+        "description" => "The world’s fastest framework for building websites",
+        "images" => ["images/gohugoio-card.png"]
+      },
+      "pluralizeListTitles" => false,
+      "social" => %{"twitter" => "GoHugoIO"},
+      "taxonomies" => %{"category" => "categories"}
+    }
+    assert toml == expected
+  end
+
 end

@@ -1,0 +1,129 @@
+# Taken from https://github.com/gohugoio/hugo
+baseURL = "https://gohugo.io/"
+paginate =  100
+enableEmoji = true
+# Set the unicode character used for the "return" link in page footnotes.
+footnotereturnlinkcontents = "↩"
+
+googleAnalytics = "UA-7131036-4"
+
+pluralizeListTitles = false
+
+[outputs]
+home = [ "HTML", "RSS", "REDIR", "HEADERS" ]
+section = [ "HTML", "RSS"]
+
+[mediaTypes]
+[mediaTypes."text/netlify"]
+suffix = ""
+delimiter = ""
+
+[outputFormats]
+[outputFormats.REDIR]
+mediatype = "text/netlify"
+baseName = "_redirects"
+[outputFormats.HEADERS]
+mediatype = "text/netlify"
+
+[social]
+twitter = "GoHugoIO"
+
+#CUSTOM PARAMS
+[params]
+  description = "The world’s fastest framework for building websites"
+
+  # First one is picked as the Twitter card image if not set on page.
+  images = ["images/gohugoio-card.png"]
+
+  #sidebar_direction = "sidebar_left"
+
+# MARKDOWN
+## Configuration for BlackFriday markdown parser: https://github.com/russross/blackfriday
+[blackfriday]
+	plainIDAnchors = true
+	hrefTargetBlank = true
+  angledQuotes = false
+  latexDashes = true
+
+[taxonomies]
+  category = "categories"
+
+# High level items
+
+[[menu.docs]]
+  name = "About Hugo"
+  weight = 1
+
+[[menu.docs]]
+  name = "Getting Started"
+  weight = 5
+
+
+[[menu.docs]]
+  name = "Themes"
+  weight = 15
+  url = "/themes/"
+
+# Core Menus
+
+[[menu.docs]]
+  name = "Content Management"
+  weight = 20
+  url = "/content-management/"
+
+[[menu.docs]]
+  name = "Templates"
+  weight = 25
+  identifier = "templates"
+
+  url = "/templates/"
+
+[[menu.docs]]
+  name = "Functions"
+  weight = 30
+  identifier = "functions"
+  url = "/functions/"
+
+[[menu.docs]]
+  name = "Variables"
+  weight = 35
+  identifier = "variables"
+  url = "/variables/"
+
+[[menu.docs]]
+  name = "CLI"
+  weight = 40
+  post = "break"
+  identifier = "commands"
+  url = "/commands/"
+
+
+######## QUICKLINKS
+
+  [[menu.quicklinks]]
+    name = "Fundamentals"
+    weight = 1
+
+######## GLOBAL ITEMS TO BE SHARED WITH THE HUGO SITES
+
+[[menu.global]]
+    name = "News"
+    weight = 1
+
+  [[menu.global]]
+    name = "Docs"
+    weight = 5
+
+  [[menu.global]]
+    name = "Themes"
+    weight = 10
+
+  # Anything with a weight > 100 gets an external icon
+  [[menu.global]]
+    name = "Community"
+    weight = 150
+
+
+  [[menu.global]]
+    name = "GitHub"
+    weight = 200

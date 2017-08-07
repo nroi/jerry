@@ -277,18 +277,17 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
-  # TODO nested tables not supported yet.
-  # test "table-array-implicit" do
-  #   toml = File.read!("test/valid/table-array-implicit.toml") |> Jerry.decode!
-  #   expected = %{
-  #     "albums" => %{
-  #       "songs" => %{
-  #         "name" => "Glory Days"
-  #       }
-  #     }
-  #   }
-  #   assert toml == expected
-  # end
+  test "table-array-implicit" do
+    toml = File.read!("test/valid/table-array-implicit.toml") |> Jerry.decode!
+    expected = %{
+      "albums" => %{
+        "songs" => [
+          %{"name" => "Glory Days"}
+        ]
+      }
+    }
+    assert toml == expected
+  end
 
   test "table-array-many" do
     toml = File.read!("test/valid/table-array-many.toml") |> Jerry.decode!
@@ -336,7 +335,30 @@ defmodule JerryValidTest do
             %{"name" => "Glory Days"},
             %{"name" => "Dancing in the Dark"}
           ]
-        }
+        },
+      ]
+    }
+    assert toml == expected
+  end
+
+  test "table-array-nest-simple" do
+    toml = File.read!("test/valid/table-array-nest-simple.toml") |> Jerry.decode!
+    expected = %{
+      "albums" => [
+        %{
+          "name" => 1,
+          "songs" => [
+            %{"name" => 2},
+            %{"name" => 3}
+          ]
+        },
+        %{
+          "name" => 4,
+          "songs" => [
+            %{"name" => 5},
+            %{"name" => 6}
+          ]
+        },
       ]
     }
     assert toml == expected
@@ -348,6 +370,14 @@ defmodule JerryValidTest do
       "people" => [
         %{"first_name" => "Bruce", "last_name" => "Springsteen"}
       ]
+    }
+    assert toml == expected
+  end
+
+  test "table-array-deeply-nested" do
+    toml = File.read!("test/valid/table-array-deeply-nested.toml") |> Jerry.decode!
+    expected = %{
+      "1" => %{"2" => %{"3" => %{"4" => %{"5" => %{"6" => %{"7" => %{"8" => %{"9" => %{"10" => [%{}]}}}}}}}}}
     }
     assert toml == expected
   end

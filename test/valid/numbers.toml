@@ -1,0 +1,24 @@
+int1 = +99
+int2 = 42
+int3 = 0
+int4 = -17
+
+int5 = 1_000
+int6 = 5_349_221
+int7 = 1_2_3_4_5     # VALID but discouraged
+
+# fractional
+flt1 = +1.0
+flt2 = 3.1415
+flt3 = -0.01
+
+# exponent
+flt4 = 5e+22
+flt5 = 5e-22
+flt6 = 1e6
+flt7 = -2E-2
+
+# both
+flt8 = 6.626e-34
+
+flt9 = 9_224_617.445_991_228_313

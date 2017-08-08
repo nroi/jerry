@@ -4,6 +4,30 @@ defmodule JerryValidTest do
   # Each test in this file corresponds to exactly one TOML file in the test/valid directory.
   # The TOML files have been copied from https://github.com/BurntSushi/toml-test
 
+
+  test "numbers" do
+    toml = File.read!("test/valid/numbers.toml") |> Jerry.decode!
+    expected = %{
+      "flt1" => 1.0,
+      "flt2" => 3.1415,
+      "flt3" => -0.01,
+      "flt4" => 5.0e+22,
+      "flt5" => 5.0e-22,
+      "flt6" => 1.0e6,
+      "flt7" => -2.0e-2,
+      "flt8" => 6.626e-34,
+      "flt9" => 9_224_617.445_991_228_313,
+      "int1" => 99,
+      "int2" => 42,
+      "int3" => 0,
+      "int4" => -17,
+      "int5" => 1_000,
+      "int6" => 5_349_221,
+      "int7" => 1_2_3_4_5
+    }
+    assert toml == expected
+  end
+
   test "array-empty" do
     toml = File.read!("test/valid/array-empty.toml") |> Jerry.decode!
     expected = %{"thevoid" => [[[[[]]]]]}

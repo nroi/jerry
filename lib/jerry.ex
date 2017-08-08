@@ -265,28 +265,33 @@ defmodule Jerry do
   def intermediate2val({:toml_float, float}) do
     zero_prefixable_int = iv ~r/\d(\d|_\d)*/
     frac = iv ~r/\.(#{zero_prefixable_int})/
-    integer = iv ~r/(\+|-)?\d/
+    int = iv ~r/(\d)|([1-9](\d|_\d)+)/
+    integer = iv ~r/(\+|-)?(#{int})/
     exp = iv ~r/(e|E)(#{integer})/
     re = ~r/^(?<pre>#{integer})((?<f1>#{frac})|((?<f2>#{frac})(?<e1>#{exp}))|(?<e2>#{exp}))$/
     case Regex.named_captures(re, float) do
       nil ->
-        nil
+        raise "Unable to parse float: #{inspect float}"
       captures ->
-        pre = captures["pre"]
-        frac = fetch(captures, "f1") || fetch(captures, "f2") || ".0"
+        pre = String.replace(captures["pre"], "_", "")
+        frac = String.replace(fetch(captures, "f1") || fetch(captures, "f2") || ".0", "_", "")
         exp = case fetch(captures, "e1") || fetch(captures, "e2") do
           "e" <> rest -> rest
           "E" <> rest -> rest
           nil -> nil
         end
         mantissa = String.to_float(pre <> frac)
-        factor = case exp do
-          nil -> 1
-          e ->
-            exponent = String.to_integer(e)
-            :math.pow(10, exponent)
+        case exp do
+          nil ->
+            mantissa
+          exponent ->
+            # Parsing the string expression into their integer components only to create a string
+            # again seems rather involved, however, we cannot give the toml float to
+            # String.to_float/1 since something like "1e2" is a valid toml float, but not a
+            # valid Erlang float. Also, calculating the number from the integer components
+            # (using :math.pow/1) will result in rounding errors.
+            String.to_float("#{mantissa}e#{exponent}")
         end
-        mantissa * factor
     end
   end
 

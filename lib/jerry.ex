@@ -96,28 +96,8 @@ defmodule Jerry do
       _ -> false
     end
   end
-
-  # Given tname = [foo.bar.soo], returns a tuple {table, rest}, where
-  # table is the table with name "foo.bar", rest is everything else.
-  def immediate_predecessor(tname, intermediate_repr) when is_list(tname) do
-    default = case tname do
-      [_ | _] -> {:toml_table, :lists.droplast(tname), []}
-      _ -> nil
-    end
-    # The default TOML table with an empty list as kv_pairs should be used if and only if a table
-    # such as a.b.c is referred to in the toml file, but no table a.b was declared.
-    tmp = Enum.split_with(intermediate_repr, fn
-      {decl, n1, _kv_pairs} when decl == :toml_table or decl == :toml_array_of_tables_item ->
-        immediate_predecessor?(n1, tname)
-    end)
-    case tmp do
-      {[], rest} -> {default, rest}
-      {[x], rest} -> {x, rest}
-      # TODO caution! We blindly assume that the first table (x) is the predecessor.
-      # Write a failing test case if possible, then fix this part.
-      {[x | xs], rest} -> {x, xs ++ rest}
-    end
-  end
+  def immediate_predecessor?({:toml_table, _, _}, _), do: false
+  def immediate_predecessor?({:toml_array_of_tables_item, _, _}, _), do: false
 
   # Given a list of entries, sort all toml tables inside it.
   def sort_toml_tables(entries) do
@@ -137,14 +117,12 @@ defmodule Jerry do
     nested_sorted ++ other
   end
 
-
   # Given a flat list of {:toml_table, _, _}, return the nested list where each table with a name
   # containing a dot is put inside the appropriate table. For example, a table named "foo.bar" is
   # put inside the table named foo. Also, tables are renamed such that they contain the last part
   # only (e.g. ["foo", "bar", "baz"] is renamed to ["baz"]).
   def compress_tables(tables) do
     tables
-    # |> sort_toml_tables
     |> compress_tables_rec
   end
 
@@ -247,23 +225,6 @@ defmodule Jerry do
   #   end
   # end
 
-  def implicit_tables_rec([], all), do: all
-  def implicit_tables_rec([{:toml_table, name = [_|[_|_]], _} | rest], all) do
-    predecessor_name = :lists.droplast(name)
-    has_predecessor = Enum.any?(all, fn
-      {:toml_table, ^predecessor_name, _} -> true
-      _ -> false
-    end)
-    case has_predecessor do
-      true -> implicit_tables_rec(rest, all)
-      false ->
-        implicit_predecessor = {:toml_table, predecessor_name, []}
-        implicit_tables_rec([implicit_predecessor | rest], [implicit_predecessor | all])
-    end
-  end
-  def implicit_tables_rec([_|rest], all) do
-    implicit_tables_rec(rest, all)
-  end
 
   def decode!(s) do
     s
@@ -272,15 +233,6 @@ defmodule Jerry do
     |> sort_toml_tables # TODO do we still need that?
     |> compress_intermediate
     |> kv_pairs_to_map
-  end
-
-  def concat(r1, r2) do
-    s1 = Regex.source(r1)
-    s2 = Regex.source(r2)
-    # Note that this is not the most performant way:
-    # We take two precompiled regexes, then "uncompile" them only to recompile them.
-    # Perhaps we can make use of macros to make this faster.
-    Regex.compile(s1 <> s2)
   end
 
   def iv(r) do
@@ -366,10 +318,6 @@ defmodule Jerry do
     {{:toml_array_of_tables!, unquote_string(x)}, intermediate2val({:toml_array_of_tables, xs, items})}
   end
 
-  def intermediate2val({:toml_inline_table, table_pairs}) do
-    kv_pairs_to_map(table_pairs)
-  end
-
   def intermediate2val({:key, name, value}) do
     {unquote_string(name), intermediate2val(value)}
   end
@@ -427,13 +375,6 @@ defmodule Jerry do
   end
   def unescape(""), do: ""
 
-  def replace_unicode_scalar("\\u" <> rest) when byte_size(rest) == 4 do
-    hex2scalar_unicode(rest)
-  end
-  def replace_unicode_scalar("\\U" <> rest) when byte_size(rest) == 8 do
-    hex2scalar_unicode(rest)
-  end
-
   def hex2scalar_unicode(hex) do
     {codepoint, ""} = Integer.parse(hex, 16)
     is_scalar = codepoint >= 0 && codepoint <= 0xD7FF ||
@@ -453,14 +394,6 @@ defmodule Jerry do
   def unquote_string(~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
   def unquote_string(key_name) do
     Regex.named_captures(~r/^(#{@ws})(?<key>.*?)(#{@ws})$/, key_name)["key"]
-  end
-
-  def unquote_array_of_tables("[[" <> rest) do
-    # TODO perhaps we can refactor this by taking into account that:
-    # "Naming rules for each dot separated part are the same as for keys
-    # (see definition of Key/Value Pairs)."
-    # i.e., use the same function for both keys and table names.
-    rest |> String.replace_suffix("]]", "") |> unquote_string
   end
 
   # Given a list such as [{:key, "foo", 1}], return the corresponding map, e.g. %{"foo" => 1}

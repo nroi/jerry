@@ -271,8 +271,7 @@ defmodule Jerry do
     |> prepend_implicit
     |> sort_toml_tables # TODO do we still need that?
     |> compress_intermediate
-    |> Enum.map(&intermediate2val/1)
-    |> merge_arrays_of_tables
+    |> kv_pairs_to_map
   end
 
   def concat(r1, r2) do
@@ -355,8 +354,7 @@ defmodule Jerry do
         {name, kv_pairs_to_map(kv_pairs)}
       m = {:key, _, _} -> intermediate2val(m)
     end)
-    kv_map = Map.new(kv_pairs)
-    {unquote_string(name), kv_map}
+    {unquote_string(name), Map.new(kv_pairs)}
   end
 
   def intermediate2val({:toml_array_of_tables, [name], items}) when is_list(items) do
@@ -473,6 +471,9 @@ defmodule Jerry do
   end
 
   def merge_arrays_of_tables(arrays_of_tables) do
+    # Used for post-processing after the values have been parsed using the function intermediate2val/1.
+    # intermediate2val/1 does not create the final representation of arrays of tables, since this
+    # funtion does not have enough information available to do so.
     Enum.reduce(arrays_of_tables, %{}, fn
       ({{:toml_array_of_tables!, key}, kv_pairs}, acc) when is_list(kv_pairs) ->
         prev = Map.get(acc, key, [])

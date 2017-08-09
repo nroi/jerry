@@ -446,6 +446,19 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "tables-and-arrays-of-tables" do
+    toml = File.read!("test/valid/tables-and-arrays-of-tables.toml") |> Jerry.decode!
+    expected = %{
+      "table1" => %{"a" => 1},
+      "table2" => %{"b" => 2},
+      "foo" => [%{"c" => 3}],
+      "bar" => [%{"d" => 4}],
+      "table3" => [%{"e" => 5}],
+      "table4" => [%{"f" => 6}],
+    }
+    assert toml == expected
+  end
+
   test "unicode-escape" do
     toml = File.read!("test/valid/unicode-escape.toml") |> Jerry.decode!
     expected = %{

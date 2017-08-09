@@ -1,0 +1,17 @@
+[table1]
+a = 1
+
+[table2]
+b = 2
+
+[[foo]]
+c = 3
+
+[[bar]]
+d = 4
+
+[[table3]]
+e = 5
+
+[[table4]]
+f = 6

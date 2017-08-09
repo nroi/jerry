@@ -122,9 +122,13 @@ defmodule Jerry do
   # put inside the table named foo. Also, tables are renamed such that they contain the last part
   # only (e.g. ["foo", "bar", "baz"] is renamed to ["baz"]).
   def compress_tables(tables) do
-    tables
-    |> compress_tables_rec
+    {tables, arrays} = Enum.split_with(tables, fn
+      {:toml_table, _, _} -> true
+      {:toml_array_of_tables_item, _, _} -> false
+    end)
+    compress_tables_rec(tables) ++ compress_tables_of_arrays_rec(arrays)
   end
+
 
   # Input is sorted by the nesting level of the table's name, in descending order:
   # If the name is a singleton list, we are done.
@@ -134,7 +138,9 @@ defmodule Jerry do
     |> nest_children(&immediate_predecessor?/2)
     |> Enum.map(&nest_toml_tables/1)
   end
-  def compress_tables_rec([f = {:toml_array_of_tables_item, tname, _tkv_pairs} | rest]) when is_list(tname) do
+
+  def compress_tables_of_arrays_rec([]), do: []
+  def compress_tables_of_arrays_rec([f = {:toml_array_of_tables_item, tname, _tkv_pairs} | rest]) when is_list(tname) do
     {relevant, irrelevant} = Enum.split_while(rest, fn
       {:toml_array_of_tables_item, name, _} -> length(name) > length(tname)
     end)
@@ -144,11 +150,9 @@ defmodule Jerry do
     properly_nested = Enum.map(nested, fn n ->
       nest_array_of_tables(n, nil)
     end)
-    properly_nested ++ compress_tables_rec(irrelevant)
+    properly_nested ++ compress_tables_of_arrays_rec(irrelevant)
   end
 
-  # TODO this function is the culprit: it should nest a toml_array_of_tables_item inside a
-  # newcly created :toml_array_of_table whose name is the predecessor name.
   # the function "nest_children" returns an abstract representation {parent, descendants}.
   # this function turns this representation into the one required for properly representing arrays
   # of tables, by nesting the children inside the key-value-pairs.

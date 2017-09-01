@@ -413,19 +413,34 @@ defmodule Jerry do
   end
 
   def merge_arrays_of_tables(arrays_of_tables) do
+    # TODO not sure if this function receives the wrong arguments, or if it's parsing the arguments
+    # wrong. Need to rethink the entire parsing process for arrays_of_tables, how they are
+    # represented, etc.
     # Used for post-processing after the values have been parsed using the function intermediate2val/1.
     # intermediate2val/1 does not create the final representation of arrays of tables, since this
     # funtion does not have enough information available to do so.
-    Enum.reduce(arrays_of_tables, %{}, fn
+    IO.puts "merging: #{inspect arrays_of_tables}"
+    tmp = Enum.reduce(arrays_of_tables, %{}, fn
       ({{:toml_array_of_tables!, key}, kv_pairs}, acc) when is_list(kv_pairs) ->
         prev = Map.get(acc, key, [])
+        IO.puts "prev: #{inspect prev}"
+        IO.puts "insert for key: #{inspect key} -> #{inspect [prev ++ merge_arrays_of_tables(kv_pairs)]}"
         Map.put(acc, key, prev ++ [merge_arrays_of_tables(kv_pairs)])
       ({{:toml_array_of_tables!, key}, entry}, acc) when is_tuple(entry) ->
         map = merge_arrays_of_tables([entry])
+        # TODO this is the culprit: we add the key a when it's already been inserted!
+        # Perhaps we should re-think about how arrays of tables with implicit predecessors are to be
+        # represented: For instance, to avoid recursing to a "deeper" level, save them in a flatter
+        # structure by using a name like ["a", "b"] instead of "a", with "b" as its child. Then,
+        # detect the cases where names are given as lists. Then, … ?
+        IO.puts ">>> 1 Put key inside acc: #{inspect key} #{inspect acc} #{inspect map}"
         Map.put(acc, key, map)
       ({key, value}, acc) ->
+        IO.puts ">>> 2 Put key inside acc: #{inspect key} #{inspect acc} #{inspect value}"
         Map.put(acc, key, value)
     end)
+    IO.puts "result: #{inspect tmp}"
+    tmp
   end
 
   def normalize(s) do

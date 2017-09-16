@@ -195,6 +195,9 @@ defmodule Jerry do
     end
   end
 
+  @doc """
+  Parse the given TOML string and return the corresponding map
+  """
   def decode!(s) do
     s
     |> intermediate_repr

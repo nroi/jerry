@@ -266,7 +266,7 @@ defmodule JerryTest do
     assert Jerry.intermediate_repr(s) == expected
   end
 
-  # Uncommented for now: not yet supported.
+  # TODO Uncommented for now: not yet supported.
   # test "arrays of tables may contain tables" do
   #   s = ~S([[fruit]]
   #           name = "apple"

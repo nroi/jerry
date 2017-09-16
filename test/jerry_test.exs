@@ -266,54 +266,37 @@ defmodule JerryTest do
     assert Jerry.intermediate_repr(s) == expected
   end
 
-  test "compress_tables" do
-    repr = [
-      {:toml_table, ["foo"], [1]},
-      {:toml_table, ["foo", "bar"], [2]},
-      {:toml_table, ["foo", "bbb"], []},
-      {:toml_table, ["foo", "bar", "baz"], [3]},
-    ]
-    expected = [
-      {:toml_table, ["foo"], [
-        {:toml_table, ["bar"], [
-          {:toml_table, ["baz"], [3]},
-        2]},
-        {:toml_table, ["bbb"], []},
-      1]}
-    ]
-    assert Jerry.compress_tables(repr) == expected
-  end
-
-  test "arrays of tables may contain tables" do
-    s = ~S([[fruit]]
-            name = "apple"
-            [fruit.physical]
-              color = "red"
-              shape = "round"
-    )
-    intermediate_expected = [
-      {:toml_array_of_tables_item, ["fruit"], [
-        {:key, "name", {:toml_basic_string, ~s("apple")}},
-      ]},
-      {:toml_table, ["fruit", "physical"], [
-        {:key, "shape", {:toml_basic_string, ~s("round")}},
-        {:key, "color", {:toml_basic_string, ~s("red")}},
-      ]}
-    ]
-    expected = [
-      {:toml_array_of_tables, ["fruit"], [
-        {:toml_array_of_tables_item, ["fruit"], [
-          {:toml_table, ["physical"], [
-            {:key, "shape", {:toml_basic_string, ~s("round")}},
-            {:key, "color", {:toml_basic_string, ~s("red")}},
-          ]},
-          {:key, "name", {:toml_basic_string, ~s("apple")}},
-        ]},
-      ]}
-    ]
-    assert s |> Jerry.intermediate_repr == intermediate_expected
-    assert s |> Jerry.intermediate_repr |> Jerry.compress_intermediate == expected
-  end
+  # Uncommented for now: not yet supported.
+  # test "arrays of tables may contain tables" do
+  #   s = ~S([[fruit]]
+  #           name = "apple"
+  #           [fruit.physical]
+  #             color = "red"
+  #             shape = "round"
+  #   )
+  #   intermediate_expected = [
+  #     {:toml_array_of_tables_item, ["fruit"], [
+  #       {:key, "name", {:toml_basic_string, ~s("apple")}},
+  #     ]},
+  #     {:toml_table, ["fruit", "physical"], [
+  #       {:key, "shape", {:toml_basic_string, ~s("round")}},
+  #       {:key, "color", {:toml_basic_string, ~s("red")}},
+  #     ]}
+  #   ]
+  #   expected = [
+  #     {:toml_array_of_tables, ["fruit"], [
+  #       {:toml_array_of_tables_item, ["fruit"], [
+  #         {:toml_table, ["physical"], [
+  #           {:key, "shape", {:toml_basic_string, ~s("round")}},
+  #           {:key, "color", {:toml_basic_string, ~s("red")}},
+  #         ]},
+  #         {:key, "name", {:toml_basic_string, ~s("apple")}},
+  #       ]},
+  #     ]}
+  #   ]
+  #   assert s |> Jerry.intermediate_repr == intermediate_expected
+  #   assert s |> Jerry.intermediate_repr |> Jerry.compress_intermediate == expected
+  # end
 
   test "simple nested arrays are supported" do
     # TODO remove this test case once the "more complex" one succeeds.

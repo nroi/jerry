@@ -501,8 +501,6 @@ defmodule Jerry do
           {:continue, {rest, table_pairs}} ->
             table = {:toml_array_of_tables_item, table_array_name(table), Enum.reverse(table_pairs)}
             {:continue, {rest, [table | pairs]}}
-          {:parse_array_of_tables, {_table, _rest}} ->
-            raise "bang"
           {:eof, table_pairs} ->
             table = {:toml_array_of_tables_item, table_array_name(table), Enum.reverse(table_pairs)}
             {:eof, [table | pairs]}
@@ -607,7 +605,6 @@ defmodule Jerry do
   end
 
   # Given a string such as "foo = 1, bar = 2\n", return a list of key-value pairs.
-  def parse_comma_separated("", pairs), do: Enum.reverse pairs
   def parse_comma_separated(s, pairs) do
     case parse_key(String.trim_leading(s)) do
       {:parse_table, {_table, _rest}} ->

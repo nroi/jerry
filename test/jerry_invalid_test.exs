@@ -10,4 +10,10 @@ defmodule JerryInValidTest do
     end
   end
 
+  test "array-mixed-types-arrays-and-ints" do
+    assert_raise RuntimeError, fn ->
+      File.read!("test/invalid/array-mixed-types-arrays-and-ints.toml") |> Jerry.decode!
+    end
+  end
+
 end

@@ -21,6 +21,7 @@ defmodule Jerry do
   @quoted_key source ~r/"(#{@basic_char})+"/
   @key source ~r/(#{@quoted_key})|(#{@unquoted_key})/
 
+  @doc false
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, so we can assume lines always end with \n.
     case key_value_pairs(normalize(s), kv_pairs, false) do
@@ -268,7 +269,17 @@ defmodule Jerry do
   defp intermediate2val(m = {:toml_datetime, _}), do: m
 
   defp intermediate2val({:toml_array, array}) do
-    Enum.map(array, &intermediate2val/1)
+    mixed_types = case Enum.uniq_by(array, fn {type, _} -> type end) do
+      []  -> false
+      [_] -> false
+      _   -> true
+    end
+    case mixed_types do
+      false ->
+        Enum.map(array, &intermediate2val/1)
+      true ->
+        raise "Mixed types are not allowed in arrays"
+    end
   end
 
   defp intermediate2val({:toml_table, [name], table_pairs}) do

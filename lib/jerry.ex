@@ -435,6 +435,9 @@ defmodule Jerry do
         IO.puts ">>> 1 Put key inside acc: #{inspect key} #{inspect acc} #{inspect map}"
         Map.put(acc, key, map)
       ({key, value}, acc) ->
+        if Map.has_key?(acc, key) do
+          raise "Duplicate key: #{inspect key}"
+        end
         IO.puts ">>> 2 Put key inside acc: #{inspect key} #{inspect acc} #{inspect value}"
         Map.put(acc, key, value)
     end)

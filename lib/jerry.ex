@@ -41,7 +41,7 @@ defmodule Jerry do
   # the intermediate representation contains tokens in the order they have occured in the original
   # string. This also means that for arrays of tables, different key-value-pairs belonging to the
   # same array-of-table are spread at different positions in the list.
-  # Hence, all arrays-of-tables are "compressed" such that we can subsequently generate the
+  # This function will "compress" all arrays-of-tables such that we can subsequently generate the
   # final map by looking at each item of the list, one by one.
   def compress_intermediate(intermediate_repr) do
     {tables_and_array_items, other} = Enum.split_with(intermediate_repr, fn
@@ -241,7 +241,7 @@ defmodule Jerry do
 
   def iv(r) do
     # just a workaround to allow us to have regex syntax highlighting
-    # and to compose multiple regex using string interpolation.
+    # and to compose regexes using string interpolation.
     Regex.source(r)
   end
 
@@ -406,7 +406,6 @@ defmodule Jerry do
   end
 
   # Given a list such as [{:key, "foo", 1}], return the corresponding map, e.g. %{"foo" => 1}
-  # TODO introduce a type such as kv_pairs :: [kv_pair], kv_pair == {:key, String.t, value}
   def kv_pairs_to_map(kv_pairs) do
     pairs = Enum.map(kv_pairs, &intermediate2val/1)
     merge_arrays_of_tables(pairs)

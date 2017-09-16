@@ -31,7 +31,7 @@ defmodule Jerry do
   end
 
 
-  # the intermediate representation contains tokens in the order they have occured in the original
+  # the intermediate representation contains tokens in the order they have occurred in the original
   # string. This also means that for arrays of tables, different key-value-pairs belonging to the
   # same array-of-table are spread at different positions in the list.
   # This function will "compress" all arrays-of-tables such that we can subsequently generate the
@@ -199,15 +199,9 @@ defmodule Jerry do
     s
     |> intermediate_repr
     |> prepend_implicit
-    |> sort_toml_tables # TODO do we still need that?
+    |> sort_toml_tables
     |> compress_intermediate
     |> kv_pairs_to_map
-  end
-
-  defp iv(r) do
-    # just a workaround to allow us to have regex syntax highlighting
-    # and to compose regexes using string interpolation.
-    Regex.source(r)
   end
 
   # Used to fetch keys from regex captures: "" is treated as if it weren't present.
@@ -232,11 +226,11 @@ defmodule Jerry do
   end
 
   defp intermediate2val({:toml_float, float}) do
-    zero_prefixable_int = iv ~r/\d(\d|_\d)*/
-    frac = iv ~r/\.(#{zero_prefixable_int})/
-    int = iv ~r/(\d)|([1-9](\d|_\d)+)/
-    integer = iv ~r/(\+|-)?(#{int})/
-    exp = iv ~r/(e|E)(#{integer})/
+    zero_prefixable_int = source ~r/\d(\d|_\d)*/
+    frac = source ~r/\.(#{zero_prefixable_int})/
+    int = source ~r/(\d)|([1-9](\d|_\d)+)/
+    integer = source ~r/(\+|-)?(#{int})/
+    exp = source ~r/(e|E)(#{integer})/
     re = ~r/^(?<pre>#{integer})((?<f1>#{frac})|((?<f2>#{frac})(?<e1>#{exp}))|(?<e2>#{exp}))$/
     case Regex.named_captures(re, float) do
       nil ->
@@ -255,8 +249,8 @@ defmodule Jerry do
             mantissa
           exponent ->
             # Parsing the string expression into their integer components only to create a string
-            # again seems rather involved, however, we cannot give the toml float to
-            # String.to_float/1 since something like "1e2" is a valid toml float, but not a
+            # again seems rather involved, however, we cannot give the TOML float to
+            # String.to_float/1 since something like "1e2" is a valid TOML float, but not a
             # valid Erlang float. Also, calculating the number from the integer components
             # (using :math.pow/1) will result in rounding errors.
             String.to_float("#{mantissa}e#{exponent}")
@@ -413,7 +407,7 @@ defmodule Jerry do
 
   defp parse_key(""), do: :eof
   defp parse_key(~s("") <> rest) do
-    # A key consisting of "" is allowed in Toml (although discouraged).
+    # A key consisting of "" is allowed in TOML (although discouraged).
     {{:key, ""}, rest}
   end
   defp parse_key("#" <> rest) do

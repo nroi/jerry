@@ -1,5 +1,7 @@
 defmodule Jerry.Utils.ListUtils do
+  @moduledoc false
 
+  @doc false
   def nest_children([], _pred), do: []
   def nest_children([x|xs], pred) do
     {children, unrelated} = split_children(x, xs, pred)
@@ -14,6 +16,7 @@ defmodule Jerry.Utils.ListUtils do
   # successor_def is a list of tuples, each tuple of type f.
   # The following precondition must be fulfilled: each child must occur after its parent in `entries`.
   # TODO use type annotations, otherwise this function is difficult to grok.
+  @doc false
   def split_children(parent, entries, pred) do
     # Each entry must be unique, otherwise the MapSet will not work as supposed to.
     unique_entries = Enum.with_index(entries)
@@ -27,10 +30,12 @@ defmodule Jerry.Utils.ListUtils do
     {{parent, Enum.map(children, &without_indices/1)}, rest}
   end
 
+  @doc false
   def without_indices({{x, idx}, descendants}) when is_integer(idx) do
     {x, Enum.map(descendants, &without_indices/1)}
   end
 
+  @doc false
   def successors(parent, [], _pred, m = %MapSet{}), do: {{parent, []}, m}
   def successors(parent, entries = [_|xs], pred, m = %MapSet{}) do
     immediate_succs = Enum.filter(entries, fn entry ->

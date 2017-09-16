@@ -8,7 +8,6 @@ defmodule Jerry do
   import Jerry.Utils.StringUtils, only: [remove_suffix: 2]
   import Jerry.Utils.ListUtils, only: [nest_children: 2]
 
-  # TODO Check out the abnf file for the TOML grammar, then introduce more regexes.
   @wschar source ~r/ |\t/
   @ws     source ~r/(#{@wschar})*/
   @wsn    source ~r/(#{@wschar}|\n)*/
@@ -21,12 +20,6 @@ defmodule Jerry do
   @basic_char source ~r/(#{@basic_unescaped})|(#{@escaped})/
   @quoted_key source ~r/"(#{@basic_char})+"/
   @key source ~r/(#{@quoted_key})|(#{@unquoted_key})/
-
-  # FIXME used for debugging purposes.
-  def escaped, do: @escaped
-  def quoted_key, do: @quoted_key
-  def basic_unesaped, do: @basic_unescaped
-  def key, do: @key
 
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, so we can assume lines always end with \n.
@@ -43,7 +36,7 @@ defmodule Jerry do
   # same array-of-table are spread at different positions in the list.
   # This function will "compress" all arrays-of-tables such that we can subsequently generate the
   # final map by looking at each item of the list, one by one.
-  def compress_intermediate(intermediate_repr) do
+  defp compress_intermediate(intermediate_repr) do
     {tables_and_array_items, other} = Enum.split_with(intermediate_repr, fn
       {:toml_array_of_tables_item, _, _} -> true
       {:toml_table, _, _} -> true
@@ -69,38 +62,38 @@ defmodule Jerry do
 
   # Given two lists l1, l2, where l1 is a prefix of l2. Return the rest of l2, i.e., the part that
   # does not match l1.
-  def suffix_after_prefix([], l2) do
+  defp suffix_after_prefix([], l2) do
     l2
   end
-  def suffix_after_prefix([x | rest1], [y | rest2])   when x == y do
+  defp suffix_after_prefix([x | rest1], [y | rest2])   when x == y do
     suffix_after_prefix(rest1, rest2)
   end
-  def suffix_after_prefix([_x|_rest1], []) do
+  defp suffix_after_prefix([_x|_rest1], []) do
     :no_prefix
   end
-  def suffix_after_prefix([x | _rest1], [y | _rest2]) when x != y do
+  defp suffix_after_prefix([x | _rest1], [y | _rest2]) when x != y do
     :no_prefix
   end
 
-  def immediate_predecessor?({:toml_table, pname, _},
+  defp immediate_predecessor?({:toml_table, pname, _},
                              {:toml_table, cname, _}) do
       immediate_predecessor?(pname, cname)
   end
-  def immediate_predecessor?({:toml_array_of_tables_item, pname, _},
+  defp immediate_predecessor?({:toml_array_of_tables_item, pname, _},
                              {:toml_array_of_tables_item, cname, _}) do
       immediate_predecessor?(pname, cname)
   end
-  def immediate_predecessor?(pname, cname) when is_list(pname) and is_list(cname) do
+  defp immediate_predecessor?(pname, cname) when is_list(pname) and is_list(cname) do
     case suffix_after_prefix(pname, cname) do
       [_name] -> true
       _ -> false
     end
   end
-  def immediate_predecessor?({:toml_table, _, _}, _), do: false
-  def immediate_predecessor?({:toml_array_of_tables_item, _, _}, _), do: false
+  defp immediate_predecessor?({:toml_table, _, _}, _), do: false
+  defp immediate_predecessor?({:toml_array_of_tables_item, _, _}, _), do: false
 
   # Given a list of entries, sort all toml tables inside it.
-  def sort_toml_tables(entries) do
+  defp sort_toml_tables(entries) do
     # The entries have to be nested already (e.g. a toml table with name ["foo", "bar"] is nested
     # inside a toml table with name ["foo"].
     {tables, other} = Enum.split_with(entries, fn
@@ -121,7 +114,7 @@ defmodule Jerry do
   # containing a dot is put inside the appropriate table. For example, a table named "foo.bar" is
   # put inside the table named foo. Also, tables are renamed such that they contain the last part
   # only (e.g. ["foo", "bar", "baz"] is renamed to ["baz"]).
-  def compress_tables(tables) do
+  defp compress_tables(tables) do
     {tables, arrays} = Enum.split_with(tables, fn
       {:toml_table, _, _} -> true
       {:toml_array_of_tables_item, _, _} -> false
@@ -132,15 +125,15 @@ defmodule Jerry do
 
   # Input is sorted by the nesting level of the table's name, in descending order:
   # If the name is a singleton list, we are done.
-  def compress_tables_rec([]), do: []
-  def compress_tables_rec(tables = [{:toml_table, tname, _tkv_pairs} | _rest]) when is_list(tname)  do
+  defp compress_tables_rec([]), do: []
+  defp compress_tables_rec(tables = [{:toml_table, tname, _tkv_pairs} | _rest]) when is_list(tname)  do
     tables
     |> nest_children(&immediate_predecessor?/2)
     |> Enum.map(&nest_toml_tables/1)
   end
 
-  def compress_tables_of_arrays_rec([]), do: []
-  def compress_tables_of_arrays_rec([f = {:toml_array_of_tables_item, tname, _tkv_pairs} | rest]) when is_list(tname) do
+  defp compress_tables_of_arrays_rec([]), do: []
+  defp compress_tables_of_arrays_rec([f = {:toml_array_of_tables_item, tname, _tkv_pairs} | rest]) when is_list(tname) do
     {relevant, irrelevant} = Enum.split_while(rest, fn
       {:toml_array_of_tables_item, name, _} -> length(name) > length(tname)
     end)
@@ -156,7 +149,7 @@ defmodule Jerry do
   # the function "nest_children" returns an abstract representation {parent, descendants}.
   # this function turns this representation into the one required for properly representing arrays
   # of tables, by nesting the children inside the key-value-pairs.
-  def nest_array_of_tables({child = {:toml_array_of_tables_item, name, kv_pairs}, descendants}, parent) do
+  defp nest_array_of_tables({child = {:toml_array_of_tables_item, name, kv_pairs}, descendants}, parent) do
     new_children = Enum.map(descendants, fn descendant ->
       nest_array_of_tables(descendant, child)
     end)
@@ -172,11 +165,11 @@ defmodule Jerry do
     {:toml_array_of_tables, new_name, new_children ++ kv_pairs}
   end
 
-  def nest_toml_tables({{:toml_table, name, kv_pairs}, descendants}) do
+  defp nest_toml_tables({{:toml_table, name, kv_pairs}, descendants}) do
     {:toml_table, [:lists.last(name)], Enum.map(descendants, &nest_toml_tables/1) ++ kv_pairs}
   end
 
-  def prepend_implicit(explicit) do
+  defp prepend_implicit(explicit) do
     Enum.reduce(explicit, [], fn
       t = {:toml_table, _name, _}, acc ->
         acc ++ predecessors_to_insert(t, explicit, []) ++ [t]
@@ -186,8 +179,8 @@ defmodule Jerry do
   end
 
   # returns all implicit predecessors of this entry (i.e., predecessors not yet contained in explicit)
-  def predecessors_to_insert(_entry = {:toml_table, [_name], _}, _explicit, acc), do: acc
-  def predecessors_to_insert(_entry = {:toml_table, name, _}, explicit, acc) do
+  defp predecessors_to_insert(_entry = {:toml_table, [_name], _}, _explicit, acc), do: acc
+  defp predecessors_to_insert(_entry = {:toml_table, name, _}, explicit, acc) do
     predecessor_name = :lists.droplast(name)
     has_predecessor = Enum.any?(explicit, fn
       {:toml_table, ^predecessor_name, _} -> true
@@ -202,34 +195,6 @@ defmodule Jerry do
     end
   end
 
-  # TODO the following three clauses are copy-pasted.
-  # def prepend_implicit_arrays(explicit) do
-  #   Enum.reduce(explicit, [], fn
-  #     t = {:toml_array_of_tables_item, _name, _}, acc ->
-  #       acc ++ predecessors_to_insert_array(t, explicit, []) ++ [t]
-  #     other, acc ->
-  #       acc ++ [other]
-  #   end)
-  # end
-
-  # # returns all implicit predecessors of this entry (i.e., predecessors not yet contained in explicit)
-  # def predecessors_to_insert_array(_entry = {:toml_array_of_tables_item, [_name], _}, _explicit, acc), do: acc
-  # def predecessors_to_insert_array(_entry = {:toml_array_of_tables_item, name, _}, explicit, acc) do
-  #   predecessor_name = :lists.droplast(name)
-  #   has_predecessor = Enum.any?(explicit, fn
-  #     {:toml_array_of_tables_item, ^predecessor_name, _} -> true
-  #     _ -> false
-  #   end)
-  #   case has_predecessor do
-  #     true ->
-  #       acc
-  #     false ->
-  #       predecessor = {:toml_array_of_tables_item, predecessor_name, []}
-  #       predecessors_to_insert_array(predecessor, explicit, [predecessor | acc])
-  #   end
-  # end
-
-
   def decode!(s) do
     s
     |> intermediate_repr
@@ -239,7 +204,7 @@ defmodule Jerry do
     |> kv_pairs_to_map
   end
 
-  def iv(r) do
+  defp iv(r) do
     # just a workaround to allow us to have regex syntax highlighting
     # and to compose regexes using string interpolation.
     Regex.source(r)
@@ -254,7 +219,7 @@ defmodule Jerry do
     end
   end
 
-  def intermediate2val({:toml_integer, int_str}) do
+  defp intermediate2val({:toml_integer, int_str}) do
     # Leading zeroes are prohibited.
     int_regex = ~r/^(?<sign>\+|-)?(?<number>\d|([1-9](\d|(_\d))+))$/
     {factor, int_str} = case Regex.named_captures(int_regex, int_str) do
@@ -266,7 +231,7 @@ defmodule Jerry do
     factor * (int_str |> String.replace("_", "") |> String.to_integer)
   end
 
-  def intermediate2val({:toml_float, float}) do
+  defp intermediate2val({:toml_float, float}) do
     zero_prefixable_int = iv ~r/\d(\d|_\d)*/
     frac = iv ~r/\.(#{zero_prefixable_int})/
     int = iv ~r/(\d)|([1-9](\d|_\d)+)/
@@ -299,17 +264,17 @@ defmodule Jerry do
     end
   end
 
-  def intermediate2val({:toml_boolean, "false"}), do: false
-  def intermediate2val({:toml_boolean, "true"}), do: true
+  defp intermediate2val({:toml_boolean, "false"}), do: false
+  defp intermediate2val({:toml_boolean, "true"}), do: true
 
   # TODO datetime not supported for now.
-  def intermediate2val(m = {:toml_datetime, _}), do: m
+  defp intermediate2val(m = {:toml_datetime, _}), do: m
 
-  def intermediate2val({:toml_array, array}) do
+  defp intermediate2val({:toml_array, array}) do
     Enum.map(array, &intermediate2val/1)
   end
 
-  def intermediate2val({:toml_table, [name], table_pairs}) do
+  defp intermediate2val({:toml_table, [name], table_pairs}) do
     kv_pairs = Enum.map(table_pairs, fn
       {:toml_table, [name], kv_pairs} ->
         {name, kv_pairs_to_map(kv_pairs)}
@@ -318,73 +283,73 @@ defmodule Jerry do
     {unquote_string(name), Map.new(kv_pairs)}
   end
 
-  def intermediate2val({:toml_array_of_tables, [name], items}) when is_list(items) do
+  defp intermediate2val({:toml_array_of_tables, [name], items}) when is_list(items) do
     kv_map = Enum.map(items, &intermediate2val/1)
     {{:toml_array_of_tables!, unquote_string(name)}, kv_map}
   end
-  def intermediate2val({:toml_array_of_tables, [x|xs], items}) when is_list(items) do
+  defp intermediate2val({:toml_array_of_tables, [x|xs], items}) when is_list(items) do
     # Create implicit tables without any entries.
     {{:toml_array_of_tables!, unquote_string(x)}, intermediate2val({:toml_array_of_tables, xs, items})}
   end
 
-  def intermediate2val({:key, name, value}) do
+  defp intermediate2val({:key, name, value}) do
     {unquote_string(name), intermediate2val(value)}
   end
 
-  def intermediate2val({:toml_basic_string, ~s(") <> rest}) do
+  defp intermediate2val({:toml_basic_string, ~s(") <> rest}) do
     rest |> String.replace_suffix(~s("), "") |> unescape
   end
-  def intermediate2val({:toml_basic_string, ~s(') <> rest}) do
+  defp intermediate2val({:toml_basic_string, ~s(') <> rest}) do
     String.replace_suffix(rest, "'", "")
   end
 
-  def intermediate2val({:toml_multiline_basic_string, ~s("""\n) <> rest}) do
+  defp intermediate2val({:toml_multiline_basic_string, ~s("""\n) <> rest}) do
     # "A newline immediately following the opening delimiter will be trimmed."
     rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string
   end
-  def intermediate2val({:toml_multiline_basic_string, ~s(""") <> rest}) do
+  defp intermediate2val({:toml_multiline_basic_string, ~s(""") <> rest}) do
     rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string
   end
-  def intermediate2val({:toml_multiline_basic_string, ~s('''\n) <> rest}) do
+  defp intermediate2val({:toml_multiline_basic_string, ~s('''\n) <> rest}) do
     String.replace_suffix(rest, ~s('''), "")
   end
-  def intermediate2val({:toml_multiline_basic_string, ~s(''') <> rest}) do
+  defp intermediate2val({:toml_multiline_basic_string, ~s(''') <> rest}) do
     String.replace_suffix(rest, ~s('''), "")
   end
 
-  def table_array_name("[[" <> rest) do
+  defp table_array_name("[[" <> rest) do
     table_name_rec("." <> remove_suffix(rest, "]]"))
   end
-  def table_name("[" <> rest) do
+  defp table_name("[" <> rest) do
     table_name_rec("." <> remove_suffix(rest, "]"))
   end
-  def table_name_rec(""), do: []
-  def table_name_rec("." <> s) do
+  defp table_name_rec(""), do: []
+  defp table_name_rec("." <> s) do
     case Regex.named_captures(~r/^(#{@ws})(?<key>(#{@key}))((#{@ws})|$)(?<rest>.*)/, s) do
       %{"key" => key, "rest" => rest} ->
         [unquote_string(key) | table_name_rec(rest)]
     end
   end
 
-  def unescape(~S(\b) <> rest), do: "\b" <> unescape(rest)
-  def unescape(~S(\t) <> rest), do: "\t" <> unescape(rest)
-  def unescape(~S(\n) <> rest), do: "\n" <> unescape(rest)
-  def unescape(~S(\f) <> rest), do: "\f" <> unescape(rest)
-  def unescape(~S(\r) <> rest), do: "\r" <> unescape(rest)
-  def unescape(~S(\") <> rest), do: "\"" <> unescape(rest)
-  def unescape(~S(\\) <> rest), do: "\\" <> unescape(rest)
-  def unescape(~S(\u) <> <<hex::bytes-size(4)>> <> rest) do
+  defp unescape(~S(\b) <> rest), do: "\b" <> unescape(rest)
+  defp unescape(~S(\t) <> rest), do: "\t" <> unescape(rest)
+  defp unescape(~S(\n) <> rest), do: "\n" <> unescape(rest)
+  defp unescape(~S(\f) <> rest), do: "\f" <> unescape(rest)
+  defp unescape(~S(\r) <> rest), do: "\r" <> unescape(rest)
+  defp unescape(~S(\") <> rest), do: "\"" <> unescape(rest)
+  defp unescape(~S(\\) <> rest), do: "\\" <> unescape(rest)
+  defp unescape(~S(\u) <> <<hex::bytes-size(4)>> <> rest) do
     hex2scalar_unicode(hex) <> unescape(rest)
   end
-  def unescape(~S(\U) <> <<hex::bytes-size(8)>> <> rest) do
+  defp unescape(~S(\U) <> <<hex::bytes-size(8)>> <> rest) do
     hex2scalar_unicode(hex) <> unescape(rest)
   end
-  def unescape(<<c::utf8, rest::binary>>) do
+  defp unescape(<<c::utf8, rest::binary>>) do
     to_string([c]) <> unescape(rest)
   end
-  def unescape(""), do: ""
+  defp unescape(""), do: ""
 
-  def hex2scalar_unicode(hex) do
+  defp hex2scalar_unicode(hex) do
     {codepoint, ""} = Integer.parse(hex, 16)
     is_scalar = codepoint >= 0 && codepoint <= 0xD7FF ||
                 codepoint >= 0xE000 && codepoint <= 0x10FFFF
@@ -395,18 +360,18 @@ defmodule Jerry do
     end
   end
 
-  def trim_multiline_basic_string(s) do
+  defp trim_multiline_basic_string(s) do
     String.replace(s, ~r/\\(#{@wsn})*/, "")
   end
 
-  def unquote_string(~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
-  def unquote_string(~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
-  def unquote_string(key_name) do
+  defp unquote_string(~s(") <> rest), do: String.replace_suffix(rest, ~s("), "")
+  defp unquote_string(~s(') <> rest), do: String.replace_suffix(rest, ~s('), "")
+  defp unquote_string(key_name) do
     Regex.named_captures(~r/^(#{@ws})(?<key>.*?)(#{@ws})$/, key_name)["key"]
   end
 
   # Given a list such as [{:key, "foo", 1}], return the corresponding map, e.g. %{"foo" => 1}
-  def kv_pairs_to_map(kv_pairs) do
+  defp kv_pairs_to_map(kv_pairs) do
     pairs = Enum.map(kv_pairs, &intermediate2val/1)
     merge_arrays_of_tables(pairs)
   end
@@ -424,7 +389,7 @@ defmodule Jerry do
   # Used for post-processing after the values have been parsed using the function intermediate2val/1.
   # intermediate2val/1 does not create the final representation of arrays of tables, since this
   # function does not have enough information available to do so.
-  def merge_arrays_of_tables(arrays_of_tables) do
+  defp merge_arrays_of_tables(arrays_of_tables) do
     Enum.reduce(arrays_of_tables, %{}, fn
       ({{:toml_array_of_tables!, key}, kv_pairs}, acc) when is_list(kv_pairs) ->
         prev = Map.get(acc, key, [])
@@ -440,40 +405,40 @@ defmodule Jerry do
     end)
   end
 
-  def normalize(s) do
+  defp normalize(s) do
     # Use unix convention, using \n as line breaks and at least one newline after each line (i.e.,
     # the last line is guaranteed to end with \n).
     (s |> String.trim_leading |> String.replace("\r\n", "\n")) <> "\n"
   end
 
-  def parse_key(""), do: :eof
-  def parse_key(~s("") <> rest) do
+  defp parse_key(""), do: :eof
+  defp parse_key(~s("") <> rest) do
     # A key consisting of "" is allowed in Toml (although discouraged).
     {{:key, ""}, rest}
   end
-  def parse_key("#" <> rest) do
+  defp parse_key("#" <> rest) do
     # Skip comment and trailing space after that comment.
     next = String.replace(rest, ~r/^.*\n(#{@wsn})*/, "", global: :false)
     parse_key(next)
   end
-  def parse_key("\"" <> rest) do
+  defp parse_key("\"" <> rest) do
     case parse_quoted_string(rest) do
       {{:quoted_string, ss}, rest} -> {{:key, unquote_string(ss)}, rest}
     end
   end
-  def parse_key(k = "[[" <> _) do
+  defp parse_key(k = "[[" <> _) do
     {table, rest} = split_newline(k)
     {:parse_array_of_tables, {table, rest}}
   end
-  def parse_key("[\"" <> rest) do
+  defp parse_key("[\"" <> rest) do
     {{:quoted_string, table}, "]" <> rest} = parse_quoted_string(rest)
     {:parse_table, {"[" <> table <> "]", skip_comment(rest)}}
   end
-  def parse_key(k = "[" <> _) do
+  defp parse_key(k = "[" <> _) do
     {table, rest} = split_newline(k)
     {:parse_table, {table, rest}}
   end
-  def parse_key(s) do
+  defp parse_key(s) do
     [key, rest] = String.split(s, ~r/(#{@ws})=(#{@ws})/, parts: 2)
     {{:key, unquote_string(key)}, rest}
   end
@@ -489,8 +454,8 @@ defmodule Jerry do
     String.replace(s, ~r/^((#{@ws})(#.*)?\n)*(#{@ws})/, "")
   end
 
-  def key_value_pairs("", pairs, _), do: {:eof, pairs}
-  def key_value_pairs(s, pairs, inside_table) do
+  defp key_value_pairs("", pairs, _), do: {:eof, pairs}
+  defp key_value_pairs(s, pairs, inside_table) do
     case parse_key(String.trim_leading(s)) do
       {:parse_array_of_tables, {table, rest}} when inside_table ->
         # Do not parse this table as the values of a preceding table.
@@ -526,24 +491,24 @@ defmodule Jerry do
     end
   end
 
-  def parse_value("true" <> rest) do
+  defp parse_value("true" <> rest) do
     {{:toml_boolean, "true"}, rest}
   end
 
-  def parse_value("false" <> rest) do
+  defp parse_value("false" <> rest) do
     {{:toml_boolean, "false"}, rest}
   end
 
-  def parse_value("'''\n" <> rest) do
+  defp parse_value("'''\n" <> rest) do
     [s, rest] = String.split(rest, "'''", parts: 2)
     {{:toml_multiline_basic_string, "'''\n" <> s <> "'''"}, rest}
   end
-  def parse_value("'''" <> rest) do
+  defp parse_value("'''" <> rest) do
     [s, rest] = String.split(rest, "'''", parts: 2)
     {{:toml_multiline_basic_string, "'''" <> s <> "'''"}, rest}
   end
 
-  def parse_value("'" <> rest) do
+  defp parse_value("'" <> rest) do
     # single quoted strings must not contain single quoted strings, so we can just assume that the
     # string ends with the next single quote.
     case Regex.run(~r/^(.*?)'(.*)/s, rest, capture: :all_but_first) do
@@ -552,34 +517,34 @@ defmodule Jerry do
     end
   end
 
-  def parse_value("\"\"\"\n" <> rest) do
+  defp parse_value("\"\"\"\n" <> rest) do
     # A newline immediately following the opening delimiter will be trimmed
     # TODO consider this ^^ when turning the AST into a map.
     [s, rest] = String.split(rest, "\"\"\"", parts: 2)
     {{:toml_multiline_basic_string, "\"\"\"\n" <> s <> "\"\"\""}, rest}
   end
-  def parse_value("\"\"\"" <> rest) do
+  defp parse_value("\"\"\"" <> rest) do
     [s, rest] = String.split(rest, "\"\"\"", parts: 2)
     {{:toml_multiline_basic_string, "\"\"\"" <> s <> "\"\"\""}, rest}
   end
 
-  def parse_value("\"" <> rest) do
+  defp parse_value("\"" <> rest) do
     case parse_quoted_string(rest) do
       {{:quoted_string, s}, rest} -> {{:toml_basic_string, s}, rest}
     end
   end
 
-  def parse_value(n = "+" <> _) do
+  defp parse_value(n = "+" <> _) do
     parse_number(n)
   end
-  def parse_value(n = "-" <> _) do
+  defp parse_value(n = "-" <> _) do
     parse_number(n)
   end
-  def parse_value("[" <> rest) do
+  defp parse_value("[" <> rest) do
     {values, rest} = parse_values(skip_comment(rest), [])
     {{:toml_array, values}, rest}
   end
-  def parse_value("{" <> rest) do
+  defp parse_value("{" <> rest) do
     # TODO:
     # "Inline tables are intended to appear on a single line. No newlines are allowed between the
     # curly braces unless they are valid within a value. Even so, it is strongly discouraged to
@@ -592,12 +557,12 @@ defmodule Jerry do
     kv_pairs = parse_comma_separated(value_string <> "\n", [])
     {{:toml_inline_table, kv_pairs}, rest}
   end
-  def parse_value(n) do
+  defp parse_value(n) do
     parse_number(n)
   end
 
-  def parse_values("]" <> rest, acc), do: { Enum.reverse(acc), rest }
-  def parse_values(n, acc) do
+  defp parse_values("]" <> rest, acc), do: { Enum.reverse(acc), rest }
+  defp parse_values(n, acc) do
     {value, rest} = case parse_value(n) do
       {v, r} -> {v, Regex.replace(~r/^(#{@ws}),?(#{@ws})/, r, "", global: false)}
     end
@@ -605,7 +570,7 @@ defmodule Jerry do
   end
 
   # Given a string such as "foo = 1, bar = 2\n", return a list of key-value pairs.
-  def parse_comma_separated(s, pairs) do
+  defp parse_comma_separated(s, pairs) do
     case parse_key(String.trim_leading(s)) do
       {:parse_table, {_table, _rest}} ->
         raise "Unexpected: table where comma-separated values were expected."
@@ -619,7 +584,7 @@ defmodule Jerry do
     end
   end
 
-  def parse_number(n) do
+  defp parse_number(n) do
     # TODO do we still need $ in the regexes, now that we append \n to the end of the string?
     num_regex = ~r/^(?<number>(\d|-|e|E|\+|-|_|\.|:|Z|T)*)(?<rest>(\s|,|]|$).*)/s
     {number, rest} = case Regex.named_captures(num_regex, n) do
@@ -647,7 +612,7 @@ defmodule Jerry do
 
   # Given a string that does NOT start with ", return the prefix up to and including ",
   # where no backslash is before the "
-  def parse_quoted_string(s, prev \\ "\"") do
+  defp parse_quoted_string(s, prev \\ "\"") do
     [start, rest] = String.split(s, "\"", parts: 2)
     if String.ends_with?(start, "\\") do
       parse_quoted_string(rest, prev <> start <> "\"")

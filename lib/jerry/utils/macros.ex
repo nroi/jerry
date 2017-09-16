@@ -1,4 +1,5 @@
 defmodule Jerry.Utils.Macros do
+  @moduledoc false
 
   defmacro source(regex) do
     quote do

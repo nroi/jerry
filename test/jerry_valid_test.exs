@@ -2,7 +2,7 @@ defmodule JerryValidTest do
   use ExUnit.Case
 
   # Each test in this file corresponds to exactly one TOML file in the test/valid directory.
-  # The TOML files have been copied from https://github.com/BurntSushi/toml-test
+  # The TOML files have mostly been copied from https://github.com/BurntSushi/toml-test
 
 
   test "numbers" do

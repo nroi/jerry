@@ -25,6 +25,7 @@ defmodule Jerry.Mixfile do
 
   defp deps do
     [
+      {:ex_doc, ">= 0.0.0", only: :dev}
       {:excoveralls, "~> 0.7", only: :test}
     ]
   end

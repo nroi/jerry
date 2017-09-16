@@ -7,11 +7,10 @@ Jerry
 Jerry is a TOML parser.
 
 Jerry is still a work in progress, the following features are missing:
-* datetimes are not supported, the parser will just return a tuple `{:toml_datetime, datetime}` where
+* Datetimes are not supported, the parser will just return a tuple `{:toml_datetime, datetime}` where
 datetime is the verbatim string as it occurs in the TOML file.
-* tables inside arrays of tables are not supported.
+* Tables inside arrays of tables are not supported.
 * For invalid TOML, the parser may either raise an exception with a cryptic error message, or falsely recognize the TOML as valid.
-
 
 With these limitations in mind, Jerry should deliver correct results if the
 input is valid according to the TOML 0.4 spec and does not contain any tables inside arrays of tables.
@@ -39,5 +38,4 @@ Run `mix deps.get` to fetch the dependencies.
 ## Contributing:
 If you find a valid TOML string which is parsed incorrectly by Jerry, please
 open an issue, unless the TOML string contains tables inside arrays of tables.
-Alternatively, may also create a pull request with a failing test case. Just fork the repository, put the TOML string inside
-`test/valid`, and create a new test case in `test/jerry_valid_test.exs`.
+Alternatively, may also create a pull request with a failing test case. Just fork the repository, put the TOML string inside a new file in the `test/valid` directory, and create a new test case in `test/jerry_valid_test.exs`.

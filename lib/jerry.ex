@@ -421,14 +421,11 @@ defmodule Jerry do
     Map.merge(m1, m2, merger)
   end
 
+  # Used for post-processing after the values have been parsed using the function intermediate2val/1.
+  # intermediate2val/1 does not create the final representation of arrays of tables, since this
+  # function does not have enough information available to do so.
   def merge_arrays_of_tables(arrays_of_tables) do
-    # TODO not sure if this function receives the wrong arguments, or if it's parsing the arguments
-    # wrong. Need to rethink the entire parsing process for arrays_of_tables, how they are
-    # represented, etc.
-    # Used for post-processing after the values have been parsed using the function intermediate2val/1.
-    # intermediate2val/1 does not create the final representation of arrays of tables, since this
-    # funtion does not have enough information available to do so.
-    tmp = Enum.reduce(arrays_of_tables, %{}, fn
+    Enum.reduce(arrays_of_tables, %{}, fn
       ({{:toml_array_of_tables!, key}, kv_pairs}, acc) when is_list(kv_pairs) ->
         prev = Map.get(acc, key, [])
         Map.put(acc, key, prev ++ [merge_arrays_of_tables(kv_pairs)])
@@ -441,8 +438,6 @@ defmodule Jerry do
         end
         Map.put(acc, key, value)
     end)
-    IO.puts "result: #{inspect tmp}"
-    tmp
   end
 
   def normalize(s) do

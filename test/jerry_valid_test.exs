@@ -313,12 +313,25 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
-  test "table-array-implicit-extended" do
-    toml = File.read!("test/valid/table-array-implicit-extended.toml") |> Jerry.decode!
+  test "table-array-implicit-extended1" do
+    toml = File.read!("test/valid/table-array-implicit-extended1.toml") |> Jerry.decode!
     expected = %{
       "a" => %{
         "b" => [
           %{"x" => 1}, %{"x" => 2}
+        ]
+      }
+    }
+    assert toml == expected
+  end
+
+  test "table-array-implicit-extended2" do
+    toml = File.read!("test/valid/table-array-implicit-extended2.toml") |> Jerry.decode!
+    expected = %{
+      "a" => %{
+        "b" => [
+          %{"x" => 1},
+          %{"x" => 2, "y" => 3}
         ]
       }
     }

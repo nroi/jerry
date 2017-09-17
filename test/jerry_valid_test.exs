@@ -583,4 +583,13 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "arrays-multiline" do
+    toml = File.read!("test/valid/arrays-multiline.toml") |> Jerry.decode!
+    expected = %{
+      "arr7" => [1, 2, 3],
+      "arr8" => [1, 2]
+    }
+    assert toml == expected
+  end
+
 end

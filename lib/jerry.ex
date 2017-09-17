@@ -298,6 +298,13 @@ defmodule Jerry do
     {unquote_string(name), Map.new(kv_pairs)}
   end
 
+  defp intermediate2val({:toml_inline_table, table_pairs}) do
+    kv_pairs = Enum.map(table_pairs, fn
+      m = {:key, _, _} -> intermediate2val(m)
+    end)
+    Map.new(kv_pairs)
+  end
+
   defp intermediate2val({:toml_array_of_tables, [name], items}) when is_list(items) do
     kv_map = Enum.map(items, &intermediate2val/1)
     {{:toml_array_of_tables!, unquote_string(name)}, kv_map}
@@ -567,6 +574,9 @@ defmodule Jerry do
     # means you should be using standard tables."
     # To make things easier, we just assume that inline tables appear on a single line for now.
     {value_string, rest} = case Regex.run(~r/(.*?)}(.*)/s, rest, capture: :all_but_first) do
+      # TODO the regex from above is not entirely correct, in particular, it doesn't work with
+      # nested arrays of tables (e.g. "x = { y = {} }"). Perhaps we should try to reuse the regexes
+      # constructed from the official abnf grammar.
       [vs, r] -> {String.trim_leading(vs), r}
     end
     kv_pairs = parse_comma_separated(value_string <> "\n", [])

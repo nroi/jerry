@@ -592,6 +592,21 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "inline-tables" do
+    toml = File.read!("test/valid/inline-tables.toml") |> Jerry.decode!
+    expected = %{
+      "name" => %{"first" => "Tom", "last" => "Preston-Werner"},
+      "point" => %{"x" => 1, "y" => 2}
+    }
+    assert toml == expected
+  end
+
+  test "empty-inline-table" do
+    toml = File.read!("test/valid/empty-inline-table.toml") |> Jerry.decode!
+    expected = %{"a" => %{}}
+    assert toml == expected
+  end
+
   @tag :wip
   test "tables-inside-arrays-of-tables" do
     toml = File.read!("test/valid/tables-inside-arrays-of-tables.toml") |> Jerry.decode!

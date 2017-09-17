@@ -149,22 +149,6 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
-  test "implicit-and-explicit-before-reverse" do
-    # Same as the previous test case, only the order of the [a] and the [a.b.c] table is swapped.
-    toml = File.read!("test/valid/implicit-and-explicit-before-reverse.toml") |> Jerry.decode!
-    expected = %{
-      "a" => %{
-        "b" => %{
-          "c" => %{
-            "answer" => 42
-          }
-        },
-        "better" => 43
-      }
-    }
-    assert toml == expected
-  end
-
   test "implicit-groups" do
     toml = File.read!("test/valid/implicit-groups.toml") |> Jerry.decode!
     expected = %{

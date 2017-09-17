@@ -267,6 +267,7 @@ defmodule JerryTest do
   end
 
   # TODO Uncommented for now: not yet supported.
+  # TODO note that we have a similar test in test/jerry_valid_test.exs
   # test "arrays of tables may contain tables" do
   #   s = ~S([[fruit]]
   #           name = "apple"

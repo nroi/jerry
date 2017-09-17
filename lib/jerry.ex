@@ -272,7 +272,14 @@ defmodule Jerry do
     mixed_types = case Enum.uniq_by(array, fn {type, _} -> type end) do
       []  -> false
       [_] -> false
-      _   -> true
+      # If there is more than one type, we need to make an exception for strings:
+      # Internally, we use two types which both represent strings, so in this case, no exception
+      # should be raised even if the types are different.
+      unique -> Enum.all?(unique, fn
+        {:toml_basic_string, _} -> false
+        {:toml_multiline_basic_string, _} -> false
+        _ -> true
+      end)
     end
     case mixed_types do
       false ->

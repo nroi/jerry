@@ -571,4 +571,16 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "arrays-same-type" do
+    toml = File.read!("test/valid/arrays-same-type.toml") |> Jerry.decode!
+    expected = %{
+      "arr1" => [1, 2, 3],
+      "arr2" => ["red", "yellow", "green"],
+      "arr3" => [[1, 2], [3, 4, 5]],
+      "arr4" => ["all", "strings", "are the same", "type"],
+      "arr5" => [[1, 2], ["a", "b", "c"]]
+    }
+    assert toml == expected
+  end
+
 end

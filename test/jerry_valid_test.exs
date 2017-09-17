@@ -48,16 +48,14 @@ defmodule JerryValidTest do
 
   test "arrays" do
     toml = File.read!("test/valid/arrays.toml") |> Jerry.decode!
+    {:ok, dt1, 0} = DateTime.from_iso8601("1987-07-05T17:45:00Z")
+    {:ok, dt2, 0} = DateTime.from_iso8601("1979-05-27T07:32:00Z")
+    {:ok, dt3, 0} = DateTime.from_iso8601("2006-06-01T11:00:00Z")
     expected = %{
       "ints" => [1, 2, 3],
       "floats" => [1.1, 2.1, 3.1],
       "strings" => ["a", "b", "c"],
-      "dates" => [
-        # TODO datetimes are not supported yet.
-        {:toml_datetime, "1987-07-05T17:45:00Z"},
-        {:toml_datetime, "1979-05-27T07:32:00Z"},
-        {:toml_datetime, "2006-06-01T11:00:00Z"},
-      ]
+      "dates" => [dt1, dt2, dt3]
     }
     assert toml == expected
   end
@@ -84,9 +82,9 @@ defmodule JerryValidTest do
 
   test "datetime" do
     toml = File.read!("test/valid/datetime.toml") |> Jerry.decode!
+    {:ok, dt, 0} = DateTime.from_iso8601("1987-07-05T17:45:00Z")
     expected = %{
-      # TODO datetimes are not supported yet.
-      "bestdayever" => {:toml_datetime, "1987-07-05T17:45:00Z"}
+      "bestdayever" => dt
     }
     assert toml == expected
   end
@@ -99,9 +97,10 @@ defmodule JerryValidTest do
 
   test "example" do
     toml = File.read!("test/valid/example.toml") |> Jerry.decode!
+    {:ok, dt, 0} = DateTime.from_iso8601("1987-07-05T17:45:00Z")
     expected = %{
       # TODO datetimes are not supported yet.
-      "best-day-ever" => {:toml_datetime, "1987-07-05T17:45:00Z"},
+      "best-day-ever" => dt,
       "numtheory" => %{
         "boring" => false,
         "perfection" => [6, 28, 496]
@@ -485,6 +484,7 @@ defmodule JerryValidTest do
 
   test "toml-example-github" do
     toml = File.read!("test/valid/toml-example-github.toml") |> Jerry.decode!
+    {:ok, dt, _offset} = DateTime.from_iso8601("1979-05-27T07:32:00-08:00")
     expected = %{
       "clients" => %{
         "data" => [["gamma", "delta"], [1, 2]],
@@ -496,7 +496,7 @@ defmodule JerryValidTest do
         "ports" => [8001, 8001, 8002],
         "server" => "192.168.1.1"},
       "owner" => %{
-        "dob" => {:toml_datetime, "1979-05-27T07:32:00-08:00"},
+        "dob" => dt,
         "name" => "Tom Preston-Werner"
       },
       "servers" => %{

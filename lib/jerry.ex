@@ -265,8 +265,17 @@ defmodule Jerry do
   defp intermediate2val({:toml_boolean, "false"}), do: false
   defp intermediate2val({:toml_boolean, "true"}), do: true
 
-  # TODO datetime not supported for now.
-  defp intermediate2val(m = {:toml_datetime, _}), do: m
+  defp intermediate2val({:toml_datetime, dt_string}) do
+    # TODO note that TOML is using RFC3339, not ISO8601. There are some subtle differences that
+    # have to be taken into account.
+    case DateTime.from_iso8601(dt_string) do
+      {:ok, dt, _offset} -> dt
+      {:error, :missing_offset} ->
+        case NaiveDateTime.from_iso8601(dt_string) do
+          {:ok, ndt} -> ndt
+        end
+    end
+  end
 
   defp intermediate2val({:toml_array, array}) do
     mixed_types = case Enum.uniq_by(array, fn {type, _} -> type end) do

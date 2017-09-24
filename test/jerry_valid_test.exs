@@ -625,6 +625,16 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "inline_tables-multiline-value.toml" do
+    toml = File.read!("test/valid/inline-tables-multiline-value.toml") |> Jerry.decode!
+    expected = %{"x" => %{"y" =>
+      "inline tables may stretch multiple lines.\n" <>
+      "but only if:\n" <>
+      "the newline occurs inside a value."
+    }}
+    assert toml == expected
+  end
+
   test "empty-inline-table" do
     toml = File.read!("test/valid/empty-inline-table.toml") |> Jerry.decode!
     expected = %{"a" => %{}}

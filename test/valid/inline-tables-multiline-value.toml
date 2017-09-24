@@ -1,0 +1,4 @@
+x = { y = """
+inline tables may stretch multiple lines.
+but only if:
+the newline occurs inside a value.""" }

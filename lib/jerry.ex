@@ -486,7 +486,7 @@ defmodule Jerry do
   end
 
   defp key_value_pairs("", pairs, _), do: {:eof, pairs}
-  defp key_value_pairs(s, pairs, inside_table) do
+  defp key_value_pairs(s, pairs, inside_table, single \\ false) do
     case parse_key(String.trim_leading(s)) do
       {:parse_array_of_tables, {table, rest}} when inside_table ->
         # Do not parse this table as the values of a preceding table.
@@ -517,7 +517,12 @@ defmodule Jerry do
         rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
         {value, rest} = parse_value(skip_comment(rest))
         new_pair = {:key, unquote_string(key), value}
-        key_value_pairs(rest, [new_pair | pairs], inside_table)
+        case single do
+          false ->
+            key_value_pairs(rest, [new_pair | pairs], inside_table)
+          true ->
+            {[new_pair | pairs], rest}
+        end
       :eof -> {:eof, pairs}
     end
   end
@@ -576,19 +581,7 @@ defmodule Jerry do
     {{:toml_array, values}, rest}
   end
   defp parse_value("{" <> rest) do
-    # TODO:
-    # "Inline tables are intended to appear on a single line. No newlines are allowed between the
-    # curly braces unless they are valid within a value. Even so, it is strongly discouraged to
-    # break an inline table onto multiples lines. If you find yourself gripped with this desire, it
-    # means you should be using standard tables."
-    # To make things easier, we just assume that inline tables appear on a single line for now.
-    {value_string, rest} = case Regex.run(~r/(.*?)}(.*)/s, rest, capture: :all_but_first) do
-      # TODO the regex from above is not entirely correct, in particular, it doesn't work with
-      # nested arrays of tables (e.g. "x = { y = {} }"). Perhaps we should try to reuse the regexes
-      # constructed from the official abnf grammar.
-      [vs, r] -> {String.trim_leading(vs), r}
-    end
-    kv_pairs = parse_comma_separated(value_string <> "\n", [])
+    {kv_pairs, rest} = parse_com_sep(String.trim_leading(rest), [])
     {{:toml_inline_table, kv_pairs}, rest}
   end
   defp parse_value(n) do
@@ -603,24 +596,20 @@ defmodule Jerry do
     parse_values(skip_comment(rest), [value | acc])
   end
 
-  # Given a string such as "foo = 1, bar = 2\n", return a list of key-value pairs.
-  defp parse_comma_separated(s, pairs) do
-    case parse_key(String.trim_leading(s)) do
-      {:parse_table, {_table, _rest}} ->
-        raise "Unexpected: table where comma-separated values were expected."
-      {{:key, key}, rest} ->
-        rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
-        {value, rest} = parse_value(rest)
-        rest = String.replace(rest, ~r/^(#{@ws}),(#{@ws})/, "")
-        new_pair = {:key, unquote_string(key), value}
-        parse_comma_separated(rest, [new_pair | pairs])
-      :eof -> Enum.reverse pairs
+  # Returns the list of all kv_pairs inside the curly braces.
+  def parse_com_sep("}" <> rest, kv_pairs), do: {kv_pairs, rest}
+  def parse_com_sep(s, kv_pairs) do
+    {[new_kv_pair], rest} = key_value_pairs(s, [], false, true)
+    case String.trim_leading(rest) do
+      "," <> rest ->
+        parse_com_sep(String.trim_leading(rest), [new_kv_pair | kv_pairs])
+      "}" <> rest ->
+        {Enum.reverse([new_kv_pair | kv_pairs]), rest}
     end
   end
 
   defp parse_number(n) do
-    # TODO do we still need $ in the regexes, now that we append \n to the end of the string?
-    num_regex = ~r/^(?<number>(\d|-|e|E|\+|-|_|\.|:|Z|T)*)(?<rest>(\s|,|]|$).*)/s
+    num_regex = ~r/^(?<number>(\d|-|e|E|\+|-|_|\.|:|Z|T)*)(?<rest>(\s|,|]|}).*)/s
     {number, rest} = case Regex.named_captures(num_regex, n) do
       %{"number" => nn, "rest" => r} -> {nn, r}
     end

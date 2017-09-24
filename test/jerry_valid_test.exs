@@ -613,7 +613,6 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
-  @tag :wip
   test "inline_tables-nested.toml" do
     toml = File.read!("test/valid/inline-tables-nested.toml") |> Jerry.decode!
     expected = %{"a" => %{"b" => %{"c" => %{"d" => 5}}}}

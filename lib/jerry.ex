@@ -299,7 +299,7 @@ defmodule Jerry do
     end
     case mixed_types do
       false ->
-        values = err_map(array, &intermediate2val/1)
+        err_map(array, &intermediate2val/1)
       true ->
         {:error, "Mixed types are not allowed in arrays"}
     end
@@ -480,7 +480,7 @@ defmodule Jerry do
   # function does not have enough information available to do so.
   defp merge_arrays_of_tables(arrays_of_tables) do
     Enum.reduce(arrays_of_tables, {:ok, %{}}, fn
-      (_, m = {:error, reason}) -> m
+      (_, m = {:error, _reason}) -> m
       ({{:toml_array_of_tables!, key}, kv_pairs}, {:ok, acc}) when is_list(kv_pairs) ->
         prev = Map.get(acc, key, [])
         with {:ok, result} <- merge_arrays_of_tables(kv_pairs) do
@@ -712,7 +712,7 @@ defmodule Jerry do
   end
 
   defp err_map(l, function, acc \\ [])
-  defp err_map([], function, acc), do: {:ok, Enum.reverse(acc)}
+  defp err_map([], _function, acc), do: {:ok, Enum.reverse(acc)}
   defp err_map([x | xs], function, acc) do
     case function.(x) do
       {:ok, result} ->

@@ -1,0 +1,2 @@
+a = { "" = "blank" }          # VALID but discouraged
+b = { '' = 'also blank' }     # VALID but discouraged

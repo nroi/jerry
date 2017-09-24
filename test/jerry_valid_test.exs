@@ -471,14 +471,18 @@ defmodule JerryValidTest do
     toml = File.read!("test/valid/unicode-escape.toml") |> Jerry.decode!
     expected = %{
       "answer4" => "δ",
-      "answer8" => "δ"
+      "answer8" => "δ",
+      "smiley" => "😀"
     }
     assert toml == expected
   end
 
   test "unicode-literal" do
     toml = File.read!("test/valid/unicode-literal.toml") |> Jerry.decode!
-    expected = %{"answer" => "δ"}
+    expected = %{
+      "answer" => "δ",
+      "smiley" => "😀"
+    }
     assert toml == expected
   end
 
@@ -638,6 +642,15 @@ defmodule JerryValidTest do
   test "empty-inline-table" do
     toml = File.read!("test/valid/empty-inline-table.toml") |> Jerry.decode!
     expected = %{"a" => %{}}
+    assert toml == expected
+  end
+
+  test "empty-quoted-keys" do
+    toml = File.read!("test/valid/empty-quoted-keys.toml") |> Jerry.decode!
+    expected = %{
+      "a" => %{"" => "blank"},
+      "b" => %{"" => "also blank"},
+    }
     assert toml == expected
   end
 

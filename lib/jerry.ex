@@ -581,7 +581,7 @@ defmodule Jerry do
     {{:toml_array, values}, rest}
   end
   defp parse_value("{" <> rest) do
-    {kv_pairs, rest} = parse_com_sep(String.trim_leading(rest), [])
+    {kv_pairs, rest} = parse_com_sep(trim_leading(rest), [])
     {{:toml_inline_table, kv_pairs}, rest}
   end
   defp parse_value(n) do
@@ -600,9 +600,9 @@ defmodule Jerry do
   def parse_com_sep("}" <> rest, kv_pairs), do: {kv_pairs, rest}
   def parse_com_sep(s, kv_pairs) do
     {[new_kv_pair], rest} = key_value_pairs(s, [], false, true)
-    case String.trim_leading(rest) do
+    case trim_leading(rest) do
       "," <> rest ->
-        parse_com_sep(String.trim_leading(rest), [new_kv_pair | kv_pairs])
+        parse_com_sep(trim_leading(rest), [new_kv_pair | kv_pairs])
       "}" <> rest ->
         {Enum.reverse([new_kv_pair | kv_pairs]), rest}
     end
@@ -642,6 +642,10 @@ defmodule Jerry do
     else
       {{:quoted_string, prev <> start <> "\""}, rest}
     end
+  end
+
+  def trim_leading(s) do
+    Regex.replace(~r/^#{@ws}/, s, "")
   end
 
 end

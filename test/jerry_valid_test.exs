@@ -619,6 +619,12 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "inline_tables-nested-with-comma.toml" do
+    toml = File.read!("test/valid/inline-tables-nested-with-comma.toml") |> Jerry.decode!
+    expected = %{"a" => %{"depth" => 1, "b" => %{"depth" => 2, "c" => %{"depth" => 3, "d" => 5}}}}
+    assert toml == expected
+  end
+
   test "empty-inline-table" do
     toml = File.read!("test/valid/empty-inline-table.toml") |> Jerry.decode!
     expected = %{"a" => %{}}

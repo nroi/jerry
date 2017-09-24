@@ -517,7 +517,7 @@ defmodule Jerry do
         rest = String.replace(rest, ~r/^(#{@ws})=(#{@ws})/, "")
         {value, rest} = parse_value(skip_comment(rest))
         new_pair = {:key, unquote_string(key), value}
-        key_value_pairs(String.trim_leading(rest), [new_pair | pairs], inside_table)
+        key_value_pairs(rest, [new_pair | pairs], inside_table)
       :eof -> {:eof, pairs}
     end
   end

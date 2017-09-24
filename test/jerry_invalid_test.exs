@@ -5,15 +5,15 @@ defmodule JerryInValidTest do
 
 
   test "duplicate-keys-array-of-tables" do
-    assert_raise RuntimeError, fn ->
-      File.read!("test/invalid/duplicate-keys-array-of-tables.toml") |> Jerry.decode!
-    end
+    expected = {:error, "Duplicate key: \"x\""}
+    actual = Jerry.decode(File.read!("test/invalid/duplicate-keys-array-of-tables.toml"))
+    assert expected == actual
   end
 
   test "array-mixed-types-arrays-and-ints" do
-    assert_raise RuntimeError, fn ->
-      File.read!("test/invalid/array-mixed-types-arrays-and-ints.toml") |> Jerry.decode!
-    end
+    expected = {:error, "Mixed types are not allowed in arrays"}
+    actual = Jerry.decode(File.read!("test/invalid/array-mixed-types-arrays-and-ints.toml"))
+    assert expected == actual
   end
 
 end

@@ -1,4 +1,5 @@
 defmodule Jerry do
+
   @moduledoc """
   Jerry, a TOML parser.
   """
@@ -199,13 +200,21 @@ defmodule Jerry do
   @doc """
   Parse the given TOML string and return the corresponding map
   """
-  def decode!(s) do
+
+  def decode(s) do
     s
     |> intermediate_repr
     |> prepend_implicit
     |> sort_toml_tables
     |> compress_intermediate
     |> kv_pairs_to_map
+  end
+
+  def decode!(s) do
+    case decode(s) do
+      {:ok, result} -> result
+      {:error, reason} -> raise reason
+    end
   end
 
   # Used to fetch keys from regex captures: "" is treated as if it weren't present.
@@ -224,9 +233,9 @@ defmodule Jerry do
       %{"sign" => "+", "number" => number} -> { 1, number}
       %{"sign" => "-", "number" => number} -> {-1, number}
       %{"sign" => "", "number" => number}  -> { 1, number}
-      nil -> raise "Unable to parse integer: #{inspect int_str}"
+      nil -> {:error, "Unable to parse integer: #{inspect int_str}"}
     end
-    factor * (int_str |> String.replace("_", "") |> String.to_integer)
+    {:ok, factor * (int_str |> String.replace("_", "") |> String.to_integer)}
   end
 
   defp intermediate2val({:toml_float, float}) do
@@ -238,7 +247,7 @@ defmodule Jerry do
     re = ~r/^(?<pre>#{integer})((?<f1>#{frac})|((?<f2>#{frac})(?<e1>#{exp}))|(?<e2>#{exp}))$/
     case Regex.named_captures(re, float) do
       nil ->
-        raise "Unable to parse float: #{inspect float}"
+        {:error, "Unable to parse float: #{inspect float}"}
       captures ->
         pre = String.replace(captures["pre"], "_", "")
         frac = String.replace(fetch(captures, "f1") || fetch(captures, "f2") || ".0", "_", "")
@@ -250,30 +259,28 @@ defmodule Jerry do
         mantissa = String.to_float(pre <> frac)
         case exp do
           nil ->
-            mantissa
+            {:ok, mantissa}
           exponent ->
             # Parsing the string expression into their integer components only to create a string
             # again seems rather involved, however, we cannot give the TOML float to
             # String.to_float/1 since something like "1e2" is a valid TOML float, but not a
             # valid Erlang float. Also, calculating the number from the integer components
             # (using :math.pow/1) will result in rounding errors.
-            String.to_float("#{mantissa}e#{exponent}")
+            {:ok, String.to_float("#{mantissa}e#{exponent}")}
         end
     end
   end
 
-  defp intermediate2val({:toml_boolean, "false"}), do: false
-  defp intermediate2val({:toml_boolean, "true"}), do: true
+  defp intermediate2val({:toml_boolean, "false"}), do: {:ok, false}
+  defp intermediate2val({:toml_boolean, "true"}), do: {:ok, true}
 
   defp intermediate2val({:toml_datetime, dt_string}) do
     # TODO note that TOML is using RFC3339, not ISO8601. There are some subtle differences that
     # have to be taken into account.
     case DateTime.from_iso8601(dt_string) do
-      {:ok, dt, _offset} -> dt
+      {:ok, dt, _offset} -> {:ok, dt}
       {:error, :missing_offset} ->
-        case NaiveDateTime.from_iso8601(dt_string) do
-          {:ok, ndt} -> ndt
-        end
+        {:ok, NaiveDateTime.from_iso8601(dt_string)}
     end
   end
 
@@ -292,60 +299,74 @@ defmodule Jerry do
     end
     case mixed_types do
       false ->
-        Enum.map(array, &intermediate2val/1)
+        values = err_map(array, &intermediate2val/1)
       true ->
-        raise "Mixed types are not allowed in arrays"
+        {:error, "Mixed types are not allowed in arrays"}
     end
   end
 
   defp intermediate2val({:toml_table, [name], table_pairs}) do
-    kv_pairs = Enum.map(table_pairs, fn
+    maybe_kv_pairs = err_map(table_pairs, fn
       {:toml_table, [name], kv_pairs} ->
-        {name, kv_pairs_to_map(kv_pairs)}
-      m = {:key, _, _} -> intermediate2val(m)
+        # TODO use with {:ok, map} as soon as kv_pairs_to_map returns the appropriate type.
+        with {:ok, map} <- kv_pairs_to_map(kv_pairs) do
+          {:ok, {name, map}}
+        end
+      m = {:key, _, _} ->
+        intermediate2val(m)
     end)
-    {unquote_string(name), Map.new(kv_pairs)}
+    with {:ok, kv_pairs} <- maybe_kv_pairs do
+      {:ok, {unquote_string(name), Map.new(kv_pairs)}}
+    end
   end
 
   defp intermediate2val({:toml_inline_table, table_pairs}) do
-    kv_pairs = Enum.map(table_pairs, fn
+    maybe_kv_pairs = err_map(table_pairs, fn
       m = {:key, _, _} -> intermediate2val(m)
     end)
-    Map.new(kv_pairs)
+    with {:ok, kv_pairs} <- maybe_kv_pairs do
+      {:ok, Map.new(kv_pairs)}
+    end
   end
 
   defp intermediate2val({:toml_array_of_tables, [name], items}) when is_list(items) do
-    kv_map = Enum.map(items, &intermediate2val/1)
-    {{:toml_array_of_tables!, unquote_string(name)}, kv_map}
+    maybe_kv_map = err_map(items, &intermediate2val/1)
+    with {:ok, kv_map} <- maybe_kv_map do
+      {:ok, {{:toml_array_of_tables!, unquote_string(name)}, kv_map}}
+    end
   end
   defp intermediate2val({:toml_array_of_tables, [x|xs], items}) when is_list(items) do
     # Create implicit tables without any entries.
-    {{:toml_array_of_tables!, unquote_string(x)}, intermediate2val({:toml_array_of_tables, xs, items})}
+    with {:ok, val} <- intermediate2val({:toml_array_of_tables, xs, items}) do
+      {:ok, {{:toml_array_of_tables!, unquote_string(x)}, val}}
+    end
   end
 
   defp intermediate2val({:key, name, value}) do
-    {unquote_string(name), intermediate2val(value)}
+    with {:ok, val} <- intermediate2val(value) do
+      {:ok, {unquote_string(name), val}}
+    end
   end
 
   defp intermediate2val({:toml_basic_string, ~s(") <> rest}) do
     rest |> String.replace_suffix(~s("), "") |> unescape
   end
   defp intermediate2val({:toml_basic_string, ~s(') <> rest}) do
-    String.replace_suffix(rest, "'", "")
+    {:ok, String.replace_suffix(rest, "'", "")}
   end
 
   defp intermediate2val({:toml_multiline_basic_string, ~s("""\n) <> rest}) do
     # "A newline immediately following the opening delimiter will be trimmed."
-    rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string
+    {:ok, rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string}
   end
   defp intermediate2val({:toml_multiline_basic_string, ~s(""") <> rest}) do
-    rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string
+    {:ok, rest |> String.replace_suffix(~s("""), "") |> trim_multiline_basic_string}
   end
   defp intermediate2val({:toml_multiline_basic_string, ~s('''\n) <> rest}) do
-    String.replace_suffix(rest, ~s('''), "")
+    {:ok, String.replace_suffix(rest, ~s('''), "")}
   end
   defp intermediate2val({:toml_multiline_basic_string, ~s(''') <> rest}) do
-    String.replace_suffix(rest, ~s('''), "")
+    {:ok, String.replace_suffix(rest, ~s('''), "")}
   end
 
   defp table_array_name("[[" <> rest) do
@@ -362,32 +383,68 @@ defmodule Jerry do
     end
   end
 
-  defp unescape(~S(\b) <> rest), do: "\b" <> unescape(rest)
-  defp unescape(~S(\t) <> rest), do: "\t" <> unescape(rest)
-  defp unescape(~S(\n) <> rest), do: "\n" <> unescape(rest)
-  defp unescape(~S(\f) <> rest), do: "\f" <> unescape(rest)
-  defp unescape(~S(\r) <> rest), do: "\r" <> unescape(rest)
-  defp unescape(~S(\") <> rest), do: "\"" <> unescape(rest)
-  defp unescape(~S(\\) <> rest), do: "\\" <> unescape(rest)
+  defp unescape(~S(\b) <> rest) do
+    with {:ok, unescaped} <- unescape(rest) do
+      {:ok, "\b" <> unescaped}
+    end
+  end
+  defp unescape(~S(\t) <> rest) do
+    with {:ok, unescaped} <- unescape(rest) do
+      {:ok, "\t" <> unescaped}
+    end
+  end
+  defp unescape(~S(\n) <> rest) do
+    with {:ok, unescaped} <- unescape(rest) do
+      {:ok, "\n" <> unescaped}
+    end
+  end
+  defp unescape(~S(\f) <> rest) do
+    with {:ok, unescaped} <- unescape(rest) do
+      {:ok, "\f" <> unescaped}
+    end
+  end
+  defp unescape(~S(\r) <> rest) do
+    with {:ok, unescaped} <- unescape(rest) do
+      {:ok, "\r" <> unescaped}
+    end
+  end
+  defp unescape(~S(\") <> rest) do
+    with {:ok, unescaped} <- unescape(rest) do
+      {:ok, "\"" <> unescaped}
+    end
+  end
+  defp unescape(~S(\\) <> rest) do
+    with {:ok, unescaped} <- unescape(rest) do
+      {:ok, "\\" <> unescaped}
+    end
+  end
   defp unescape(~S(\u) <> <<hex::bytes-size(4)>> <> rest) do
-    hex2scalar_unicode(hex) <> unescape(rest)
+    with {:ok, scalar_unicode} <- hex2scalar_unicode(hex),
+         {:ok, unescaped} <- unescape(rest) do
+      {:ok, scalar_unicode <> unescaped}
+    end
   end
   defp unescape(~S(\U) <> <<hex::bytes-size(8)>> <> rest) do
-    hex2scalar_unicode(hex) <> unescape(rest)
+    with {:ok, scalar_unicode} <- hex2scalar_unicode(hex),
+         {:ok, unescaped} <- unescape(rest) do
+           {:ok, scalar_unicode <> unescaped}
+    end
   end
   defp unescape(<<c::utf8, rest::binary>>) do
-    to_string([c]) <> unescape(rest)
+    with {:ok, unescaped} <- unescape(rest) do
+       {:ok, to_string([c]) <> unescaped}
+    end
   end
-  defp unescape(""), do: ""
+  defp unescape(""), do: {:ok, ""}
 
   defp hex2scalar_unicode(hex) do
     {codepoint, ""} = Integer.parse(hex, 16)
     is_scalar = codepoint >= 0 && codepoint <= 0xD7FF ||
                 codepoint >= 0xE000 && codepoint <= 0x10FFFF
     if is_scalar do
-      <<codepoint::utf8>>
+      {:ok, <<codepoint::utf8>>}
     else
-      raise "Not a unicode scalar value: #{inspect hex}"
+      {:error, "Not a unicode scalar value: #{inspect hex}"}
     end
   end
 
@@ -403,8 +460,9 @@ defmodule Jerry do
 
   # Given a list such as [{:key, "foo", 1}], return the corresponding map, e.g. %{"foo" => 1}
   defp kv_pairs_to_map(kv_pairs) do
-    pairs = Enum.map(kv_pairs, &intermediate2val/1)
-    merge_arrays_of_tables(pairs)
+    with {:ok, pairs}  <- err_map(kv_pairs, &intermediate2val/1) do
+      merge_arrays_of_tables(pairs)
+    end
   end
 
   defp rec_merge(m1, m2) do
@@ -421,18 +479,23 @@ defmodule Jerry do
   # intermediate2val/1 does not create the final representation of arrays of tables, since this
   # function does not have enough information available to do so.
   defp merge_arrays_of_tables(arrays_of_tables) do
-    Enum.reduce(arrays_of_tables, %{}, fn
-      ({{:toml_array_of_tables!, key}, kv_pairs}, acc) when is_list(kv_pairs) ->
+    Enum.reduce(arrays_of_tables, {:ok, %{}}, fn
+      (_, m = {:error, reason}) -> m
+      ({{:toml_array_of_tables!, key}, kv_pairs}, {:ok, acc}) when is_list(kv_pairs) ->
         prev = Map.get(acc, key, [])
-        Map.put(acc, key, prev ++ [merge_arrays_of_tables(kv_pairs)])
-      ({{:toml_array_of_tables!, key}, entry}, acc) when is_tuple(entry) ->
-        map = merge_arrays_of_tables([entry])
-        rec_merge(acc, %{key => map})
-      ({key, value}, acc) ->
-        if Map.has_key?(acc, key) do
-          raise "Duplicate key: #{inspect key}"
+        with {:ok, result} <- merge_arrays_of_tables(kv_pairs) do
+          {:ok, Map.put(acc, key, prev ++ [result])}
         end
-        Map.put(acc, key, value)
+      ({{:toml_array_of_tables!, key}, entry}, {:ok, acc}) when is_tuple(entry) ->
+        with {:ok, map} <- merge_arrays_of_tables([entry]) do
+          {:ok, rec_merge(acc, %{key => map})}
+        end
+      ({key, value}, {:ok, acc}) ->
+        if Map.has_key?(acc, key) do
+          {:error, "Duplicate key: #{inspect key}"}
+        else
+          {:ok, Map.put(acc, key, value)}
+        end
     end)
   end
 
@@ -597,8 +660,8 @@ defmodule Jerry do
   end
 
   # Returns the list of all kv_pairs inside the curly braces.
-  def parse_com_sep("}" <> rest, kv_pairs), do: {kv_pairs, rest}
-  def parse_com_sep(s, kv_pairs) do
+  defp parse_com_sep("}" <> rest, kv_pairs), do: {kv_pairs, rest}
+  defp parse_com_sep(s, kv_pairs) do
     {[new_kv_pair], rest} = key_value_pairs(s, [], false, true)
     case trim_leading(rest) do
       "," <> rest ->
@@ -644,8 +707,18 @@ defmodule Jerry do
     end
   end
 
-  def trim_leading(s) do
+  defp trim_leading(s) do
     Regex.replace(~r/^#{@ws}/, s, "")
+  end
+
+  defp err_map(l, function, acc \\ [])
+  defp err_map([], function, acc), do: {:ok, Enum.reverse(acc)}
+  defp err_map([x | xs], function, acc) do
+    case function.(x) do
+      {:ok, result} ->
+        err_map(xs, function, [result | acc])
+      {:error, reason} -> {:error, reason}
+    end
   end
 
 end

@@ -725,17 +725,17 @@ defmodule Jerry do
     end
   end
 
-  def parse_local_time(s) do
+  defp parse_local_time(s) do
     Time.from_iso8601(s)
   end
 
-  def parse_local_date(s) do
+  defp parse_local_date(s) do
     with {:error, _} <- Date.from_iso8601(s) do
       parse_local_time(s)
     end
   end
 
-  def parse_local_datetime(s) do
+  defp parse_local_datetime(s) do
     case Regex.named_captures(@local_datetime, s) do
       %{"year" => year, "month" => month, "day" => day,
         "hour" => hour, "min" => min, "sec" => sec,
@@ -746,7 +746,7 @@ defmodule Jerry do
     end
   end
 
-  def parse_datetime(s) do
+  defp parse_datetime(s) do
     case Regex.named_captures(@offset_datetime, s) do
       %{"year" => year, "month" => month, "day" => day,
         "hour" => hour, "min" => min, "sec" => sec,

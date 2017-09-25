@@ -1,0 +1,3 @@
+# RFC 3339 accepts only 00-23 as hours. Using 24 is a particularly interesting
+# edge case, since it's valid in ISO 8601.
+ldt2 = 1979-05-27T24:00:00

@@ -6,9 +6,8 @@ Jerry
 
 Jerry is a TOML parser.
 
-Jerry is still a work in progress, the following features are missing:
-* Datetimes are not supported, the parser will just return a tuple `{:toml_datetime, datetime}` where
-datetime is the verbatim string as it occurs in the TOML file.
+## Current status:
+
 * Tables inside arrays of tables are not supported.
 * For invalid TOML, the parser may either raise an exception with a cryptic error message, or falsely recognize the TOML as valid.
 
@@ -29,11 +28,14 @@ end
 
 Run `mix deps.get` to fetch the dependencies.
 
-`Jerry.decode!` is the only function you want to use, it converts a string into an Elixir map:
+`Jerry.decode!` and `Jerry.decode` are the only functions you want to use, each convert a string to Elixir map:
 ```Elixir
 ~s([table]\nmultiline = """\na string\nspanning over\nmultiple lines.""") |> Jerry.decode!
 %{"table" => %{"multiline" => "a string\nspanning over\nmultiple lines."}}
 ```
+with the difference that `Jerry.decode!` raises an Exception when something goes wrong, while
+`Jerry.decode` returns an `{:error, reason}` tuple instead.
+
 
 ## Contributing:
 If you find a valid TOML string which is parsed incorrectly by Jerry, please

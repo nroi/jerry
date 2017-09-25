@@ -22,6 +22,28 @@ defmodule Jerry do
   @quoted_key source ~r/"(#{@basic_char})+"/
   @key source ~r/(#{@quoted_key})|(#{@unquoted_key})/
 
+  @date_fullyear source ~r/\d\d\d\d/
+  @date_month source ~r/\d\d/
+  @date_mday source ~r/\d\d/
+  # Note the difference between RFC 3339 (supported by TOML) and ISO 8601 (supported by Elixir):
+  # While ISO 8601 allows 24 as hour, RFC 3339 does not.
+  # Elixir's parser of ISO 8601 also does not accept 24, so strictly speaking, listing all valid
+  # hours is not necessary. However, we don't want to rely on bugs and stay on the safe side in case
+  # the Elixir parser does support 24 as hour one day.
+  @time_hour source ~r/(00|01|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|18|19|20|21|22|23)/
+  @time_minute source ~r/\d\d/
+  @time_second source ~r/\d\d/
+  @time_secfrac source ~r/\.\d+/
+  @time_numoffset source ~r/(\+|-)#{@time_hour}:#{@time_minute}/
+  @time_offset source ~r/Z|(#{@time_numoffset})/
+
+  @partial_time source ~r/(?<hour>#{@time_hour}):(?<min>#{@time_minute}):(?<sec>#{@time_second})(?<frac>#{@time_secfrac})?/
+  @full_date source ~r/(?<year>#{@date_fullyear})-(?<month>#{@date_month})-(?<day>#{@date_mday})/
+  @full_time source ~r/(#{@partial_time})(?<offset>#{@time_offset})/
+
+  @offset_datetime ~r/#{@full_date}T#{@full_time}/
+  @local_datetime ~r/#{@full_date}T#{@partial_time}/
+
   @doc false
   def intermediate_repr(s, kv_pairs \\ []) do
     # Append \n just to make things simpler, so we can assume lines always end with \n.
@@ -277,11 +299,7 @@ defmodule Jerry do
   defp intermediate2val({:toml_datetime, dt_string}) do
     # TODO note that TOML is using RFC3339, not ISO8601. There are some subtle differences that
     # have to be taken into account.
-    case DateTime.from_iso8601(dt_string) do
-      {:ok, dt, _offset} -> {:ok, dt}
-      {:error, :missing_offset} ->
-        {:ok, NaiveDateTime.from_iso8601(dt_string)}
-    end
+    parse_datetime(dt_string)
   end
 
   defp intermediate2val({:toml_array, array}) do
@@ -704,6 +722,41 @@ defmodule Jerry do
       parse_quoted_string(rest, prev <> start <> "\"")
     else
       {{:quoted_string, prev <> start <> "\""}, rest}
+    end
+  end
+
+  def parse_local_time(s) do
+    Time.from_iso8601(s)
+  end
+
+  def parse_local_date(s) do
+    with {:error, _} <- Date.from_iso8601(s) do
+      parse_local_time(s)
+    end
+  end
+
+  def parse_local_datetime(s) do
+    case Regex.named_captures(@local_datetime, s) do
+      %{"year" => year, "month" => month, "day" => day,
+        "hour" => hour, "min" => min, "sec" => sec,
+        "frac" => frac} ->
+          NaiveDateTime.from_iso8601("#{year}-#{month}-#{day}T#{hour}:#{min}:#{sec}#{frac}")
+      nil ->
+        parse_local_date(s)
+    end
+  end
+
+  def parse_datetime(s) do
+    case Regex.named_captures(@offset_datetime, s) do
+      %{"year" => year, "month" => month, "day" => day,
+        "hour" => hour, "min" => min, "sec" => sec,
+        "frac" => frac, "offset" => offset} ->
+          s = "#{year}-#{month}-#{day}T#{hour}:#{min}:#{sec}#{frac}#{offset}"
+          with {:ok, dt, offset} <- DateTime.from_iso8601(s) do
+            {:ok, {dt, offset}}
+          end
+      nil ->
+        parse_local_datetime(s)
     end
   end
 

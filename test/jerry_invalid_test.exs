@@ -16,4 +16,9 @@ defmodule JerryInValidTest do
     assert expected == actual
   end
 
+  test "datetime-24-hour" do
+    expected = {:error, :invalid_format}
+    actual = Jerry.decode(File.read!("test/invalid/datetime-24-hour.toml"))
+    assert expected == actual
+  end
 end

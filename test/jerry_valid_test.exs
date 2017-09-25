@@ -55,7 +55,7 @@ defmodule JerryValidTest do
       "ints" => [1, 2, 3],
       "floats" => [1.1, 2.1, 3.1],
       "strings" => ["a", "b", "c"],
-      "dates" => [dt1, dt2, dt3]
+      "dates" => [{dt1, 0}, {dt2, 0}, {dt3, 0}]
     }
     assert toml == expected
   end
@@ -84,7 +84,7 @@ defmodule JerryValidTest do
     toml = File.read!("test/valid/datetime.toml") |> Jerry.decode!
     {:ok, dt, 0} = DateTime.from_iso8601("1987-07-05T17:45:00Z")
     expected = %{
-      "bestdayever" => dt
+      "bestdayever" => {dt, 0}
     }
     assert toml == expected
   end
@@ -99,8 +99,7 @@ defmodule JerryValidTest do
     toml = File.read!("test/valid/example.toml") |> Jerry.decode!
     {:ok, dt, 0} = DateTime.from_iso8601("1987-07-05T17:45:00Z")
     expected = %{
-      # TODO datetimes are not supported yet.
-      "best-day-ever" => dt,
+      "best-day-ever" => {dt, 0},
       "numtheory" => %{
         "boring" => false,
         "perfection" => [6, 28, 496]
@@ -488,7 +487,7 @@ defmodule JerryValidTest do
 
   test "toml-example-github" do
     toml = File.read!("test/valid/toml-example-github.toml") |> Jerry.decode!
-    {:ok, dt, _offset} = DateTime.from_iso8601("1979-05-27T07:32:00-08:00")
+    {:ok, dt, offset} = DateTime.from_iso8601("1979-05-27T07:32:00-08:00")
     expected = %{
       "clients" => %{
         "data" => [["gamma", "delta"], [1, 2]],
@@ -500,7 +499,7 @@ defmodule JerryValidTest do
         "ports" => [8001, 8001, 8002],
         "server" => "192.168.1.1"},
       "owner" => %{
-        "dob" => dt,
+        "dob" => {dt, offset},
         "name" => "Tom Preston-Werner"
       },
       "servers" => %{

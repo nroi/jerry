@@ -28,12 +28,12 @@ end
 
 Run `mix deps.get` to fetch the dependencies.
 
-`Jerry.decode!` and `Jerry.decode` are the only functions you want to use, each convert a string to Elixir map:
+`Jerry.decode!` and `Jerry.decode` are the only functions you want to use, each convert a string to an Elixir map:
 ```Elixir
 ~s([table]\nmultiline = """\na string\nspanning over\nmultiple lines.""") |> Jerry.decode!
 %{"table" => %{"multiline" => "a string\nspanning over\nmultiple lines."}}
 ```
-with the difference that `Jerry.decode!` raises an Exception when something goes wrong, while
+with the difference that `Jerry.decode!` raises an Exception when the parsing process fails, while
 `Jerry.decode` returns an `{:error, reason}` tuple instead.
 
 

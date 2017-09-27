@@ -21,7 +21,7 @@ Add jerry as a dependency in your `mix.exs` file:
 ```Elixir
 defp deps do
   [
-    {:jerry, "~> 0.1"}
+    {:jerry, "~> 0.1.3"}
   ]
 end
 ```

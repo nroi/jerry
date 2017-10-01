@@ -466,6 +466,30 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "array-of-table-inside-table" do
+    toml = File.read!("test/valid/array-of-table-inside-table.toml") |> Jerry.decode!
+    expected = %{
+      "accounts" => %{
+        "read_permission" => true,
+        "admin" => %{
+          "write_permission" => true,
+          "account" => [
+            %{"name" => "root", "password" => "r00t"},
+            %{"name" => "superuser", "password" => "usersuper"}
+          ],
+        },
+        "user" => %{
+          "write_permission" => false,
+          "account" => [
+            %{"name" => "john doe", "password" => "topsecret"},
+            %{"name" => "alice", "password" => "confidential"}
+          ],
+        }
+      }
+    }
+    assert toml == expected
+  end
+
   test "unicode-escape" do
     toml = File.read!("test/valid/unicode-escape.toml") |> Jerry.decode!
     expected = %{

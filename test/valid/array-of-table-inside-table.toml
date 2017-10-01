@@ -1,0 +1,18 @@
+[accounts]
+    read_permission = true
+    [accounts.user]
+        write_permission = false
+        [[accounts.user.account]]
+            name = "john doe"
+            password = "topsecret"
+        [[accounts.user.account]]
+            name = "alice"
+            password = "confidential"
+    [accounts.admin]
+        write_permission = true
+        [[accounts.admin.account]]
+            name = "root"
+            password = "r00t"
+        [[accounts.admin.account]]
+            name = "superuser"
+            password = "usersuper"

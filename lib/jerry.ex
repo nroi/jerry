@@ -146,14 +146,14 @@ defmodule Jerry do
     compress_tables_rec(tables) ++ compress_tables_of_arrays_rec(arrays)
   end
 
-
-  # Input is sorted by the nesting level of the table's name, in descending order:
+  # Input is assumed to be sorted by the nesting level of the table's name, in descending order:
   # If the name is a singleton list, we are done.
   defp compress_tables_rec([]), do: []
   defp compress_tables_rec(tables = [{:toml_table, tname, _tkv_pairs} | _rest]) when is_list(tname)  do
     tables
     |> nest_children(&immediate_predecessor?/2)
     |> Enum.map(&nest_toml_tables/1)
+    |> Enum.map(&strip_prefix(&1, nil))
   end
 
   defp compress_tables_of_arrays_rec([]), do: []
@@ -190,7 +190,7 @@ defmodule Jerry do
   end
 
   defp nest_toml_tables({{:toml_table, name, kv_pairs}, descendants}) do
-    {:toml_table, [:lists.last(name)], Enum.map(descendants, &nest_toml_tables/1) ++ kv_pairs}
+    {:toml_table, name, Enum.map(descendants, &nest_toml_tables/1) ++ kv_pairs}
   end
 
   defp prepend_implicit(explicit) do
@@ -759,6 +759,19 @@ defmodule Jerry do
         parse_local_datetime(s)
     end
   end
+
+  # Given a toml_table with a name such as ["a", "b", "c"], and a parent_name such as ["a", "b"].
+  # Returns the toml_table with its new name without the prefix, e.g. ["c"] in this case.
+  defp strip_prefix({:toml_table, name, children}, parent_name) do
+    new_children = Enum.map(children, &strip_prefix(&1, name))
+    new_name = case parent_name do
+      nil -> name
+      pname -> suffix_after_prefix(pname, name)
+    end
+    {:toml_table, new_name, new_children}
+  end
+  defp strip_prefix(x, _), do: x
+
 
   defp trim_leading(s) do
     Regex.replace(~r/^#{@ws}/, s, "")

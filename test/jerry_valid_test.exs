@@ -677,6 +677,7 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  @tag :wip
   test "tables-inside-arrays-of-tables2" do
     toml = File.read!("test/valid/tables-inside-arrays-of-tables2.toml") |> Jerry.decode!
     expected = %{

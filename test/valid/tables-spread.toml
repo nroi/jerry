@@ -1,0 +1,12 @@
+[table1]
+key = 5
+# Does the parser handle the case when the next table is a completely different
+# one, not nested inside the previous table?
+
+[table2]
+key = 6
+
+# and then, we have a table nested inside the first one?
+
+[table1.subtable1]
+key = 7

@@ -677,6 +677,35 @@ defmodule JerryValidTest do
     assert toml == expected
   end
 
+  test "tables-inside-arrays-of-tables2" do
+    toml = File.read!("test/valid/tables-inside-arrays-of-tables2.toml") |> Jerry.decode!
+    expected = %{
+      "fruit" => [
+        %{
+          "name" => "apple",
+          "physical" => %{"color" => "red"},
+        },
+      ]
+    }
+    assert toml == expected
+  end
+
+  test "tables-spread" do
+    toml = File.read!("test/valid/tables-spread.toml") |> Jerry.decode!
+    expected = %{
+      "table1" => %{
+        "key" => 5,
+        "subtable1" => %{
+          "key" => 7
+        }
+      },
+      "table2" => %{
+        "key" => 6
+      }
+    }
+    assert toml == expected
+  end
+
   @tag :wip
   test "tables-inside-arrays-of-tables" do
     toml = File.read!("test/valid/tables-inside-arrays-of-tables.toml") |> Jerry.decode!

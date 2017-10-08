@@ -448,7 +448,9 @@ defmodule JerryValidTest do
     expected = %{
       "foo" => %{
         " bar " => %{}
-      }
+      },
+      "j" => %{"ʞ" => %{"l" => %{}}},
+      "single quoted" => [%{}]
     }
     assert toml == expected
   end

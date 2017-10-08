@@ -1,1 +1,4 @@
 [ foo . " bar " ]
+[ j . "ʞ" . 'l' ]  # same as [j."ʞ".'l']
+
+[['single quoted']]

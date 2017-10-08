@@ -19,7 +19,10 @@ defmodule Jerry do
   @basic_unescaped source ~r/[#{"\u0020"}-#{"\u0021"}]|[#{"\u0023"}-#{"\u005B"}]|[#{"\u005d"}-#{"\u10FFFF"}]/
   @escaped source ~r{\\("|\\|/|b|f|n|r|t||(#{@hex4})|(#{@hex8}))}
   @basic_char source ~r/(#{@basic_unescaped})|(#{@escaped})/
-  @quoted_key source ~r/"(#{@basic_char})+"/
+  # TODO make sure this is correct once the ABNF has been updated: https://github.com/toml-lang/toml/issues/354
+  @single_quoted_key source ~r/'(#{@basic_char})+'/
+  @double_quoted_key source ~r/"(#{@basic_char})+"/
+  @quoted_key source ~r/(#{@single_quoted_key})|(#{@double_quoted_key})/
   @key source ~r/(#{@quoted_key})|(#{@unquoted_key})/
 
   @date_fullyear source ~r/\d\d\d\d/
